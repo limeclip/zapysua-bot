@@ -1,4 +1,4 @@
-import { Bot, Keyboard, type MiddlewareFn } from "grammy";
+import { Bot, InlineKeyboard, type MiddlewareFn } from "grammy";
 import {
   getOrCreateMinimalMaster,
   isMasterOnboarded,
@@ -24,10 +24,9 @@ function getWebAppUrl(): string {
   return "http://localhost:3000";
 }
 
-function webAppKeyboard(buttonText: string) {
-  return new Keyboard()
-    .webApp(buttonText, getWebAppUrl())
-    .resized();
+// ЗМІНА ТУТ: більше немає Keyboard, тільки InlineKeyboard
+function webAppInlineKeyboard(buttonText: string) {
+  return new InlineKeyboard().webApp(buttonText, getWebAppUrl());
 }
 
 export const bot = new Bot<BotContext>(getBotToken());
@@ -69,14 +68,14 @@ bot.command("start", async (ctx) => {
     if (!onboarded) {
       await ctx.reply(
         "🚀 Вітаємо в ZapysUa!\n\nНатисніть кнопку, щоб створити вашого AI-адміністратора за 2 хвилини.",
-        { reply_markup: webAppKeyboard("Розпочати") },
+        { reply_markup: webAppInlineKeyboard("Розпочати") }, // ЗМІНА ТУТ
       );
       return;
     }
 
     await ctx.reply(
       `Раді вас бачити, ${ctx.master.business_name}! 👋\n\nВідкрийте ваш кабінет, щоб керувати записами.`,
-      { reply_markup: webAppKeyboard("Відкрити кабінет") },
+      { reply_markup: webAppInlineKeyboard("Відкрити кабінет") }, // ЗМІНА ТУТ
     );
   } catch (error) {
     console.error("[bot] /start:", error);
