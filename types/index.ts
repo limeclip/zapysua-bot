@@ -50,11 +50,58 @@ export type UpdateMasterInput = {
   username?: string | null;
 };
 
+export type AiTone = "friendly" | "professional" | "caring" | "formal";
+
+export type AiSettings = {
+  master_id: string;
+  system_prompt: string | null;
+  tone: AiTone;
+  auto_reminders_enabled: boolean;
+  return_clients_enabled: boolean;
+};
+
+export type WorkingHoursDay = {
+  enabled: boolean;
+  start: string;
+  end: string;
+};
+
+export type WorkingHours = Record<
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "sunday",
+  WorkingHoursDay
+>;
+
+export type MasterWithMeta = Master & {
+  ai_settings: AiSettings | null;
+  subscription: {
+    status: string;
+    plan_type: string;
+    trial_end_date: string | null;
+  } | null;
+  is_onboarded: boolean;
+};
+
 export type CreateServiceInput = {
   name: string;
   price: number;
   duration_minutes: number;
   description?: string | null;
+};
+
+export type OnboardingPayload = {
+  telegram_id: number;
+  username?: string;
+  business_name: string;
+  category: MasterCategory;
+  location?: string | null;
+  tone: AiTone;
+  logo_url?: string | null;
 };
 
 export type SessionStep =
@@ -80,6 +127,6 @@ export type SessionData = {
   pendingDeleteServiceId?: string;
 };
 
-export interface BotContext extends Context, SessionFlavor<SessionData> {
+export interface BotContext extends Context {
   master?: Master;
 }
