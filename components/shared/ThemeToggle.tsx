@@ -3,6 +3,7 @@
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Sun, Moon } from "lucide-react";
 
 export function ThemeToggle({ label = true }: { label?: boolean }) {
   const { theme, setTheme, resolvedTheme } = useTheme();
@@ -25,13 +26,13 @@ export function ThemeToggle({ label = true }: { label?: boolean }) {
     <Button
       variant="outline"
       size={label ? "default" : "icon"}
-      className="w-full justify-between"
+      className={label ? "w-full justify-between" : ""}
       onClick={() => setTheme(isDark ? "light" : "dark")}
     >
       {label ? (
         <span>Тема: {isDark ? "темна" : "світла"}</span>
       ) : null}
-      <span aria-hidden>{isDark ? "☀️" : "🌙"}</span>
+      {isDark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
     </Button>
   );
 }

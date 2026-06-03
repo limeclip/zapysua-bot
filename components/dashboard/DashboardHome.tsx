@@ -7,6 +7,7 @@ import { ServicesTab } from "@/components/dashboard/ServicesTab";
 import { BookingsTab } from "@/components/dashboard/BookingsTab";
 import { SettingsTab } from "@/components/dashboard/SettingsTab";
 import type { MasterWithMeta } from "@/types";
+import { Calendar } from "lucide-react";
 
 type DashboardHomeProps = {
   master: MasterWithMeta;
@@ -25,16 +26,16 @@ export function DashboardHome({ master, onMasterUpdate }: DashboardHomeProps) {
             <img
               src={master.logo_url}
               alt=""
-              className="h-9 w-9 rounded-xl object-cover"
+              className="h-9 w-9 rounded-full object-cover"
             />
           ) : (
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-lg dark:bg-zinc-800">
-              🤖
-            </div>
+            <Calendar className="w-5 h-5" />
+           </div>
           )}
           <div>
             <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              ZapysUa
+              ZapysUA
             </p>
             <p className="text-xs text-zinc-500">{master.business_name}</p>
           </div>

@@ -1,14 +1,15 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { House, ClipboardList, Calendar, Settings } from "lucide-react";
 
 export type TabId = "home" | "services" | "bookings" | "settings";
 
-const TABS: { id: TabId; label: string; icon: string }[] = [
-  { id: "home", label: "Головна", icon: "🏠" },
-  { id: "services", label: "Послуги", icon: "📋" },
-  { id: "bookings", label: "Записи", icon: "📅" },
-  { id: "settings", label: "Налаштування", icon: "⚙️" },
+const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
+  { id: "home", label: "Головна", icon: <House className="h-5 w-5" strokeWidth={1.5} /> },
+  { id: "services", label: "Послуги", icon: <ClipboardList className="h-5 w-5" strokeWidth={1.5} /> },
+  { id: "bookings", label: "Записи", icon: <Calendar className="h-5 w-5" strokeWidth={1.5} /> },
+  { id: "settings", label: "Налаштування", icon: <Settings className="h-5 w-5" strokeWidth={1.5} /> },
 ];
 
 export function TabBar({
@@ -27,13 +28,13 @@ export function TabBar({
             type="button"
             onClick={() => onChange(tab.id)}
             className={cn(
-              "flex min-w-[72px] flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-medium transition-colors",
+              "flex min-w-[72px] flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-medium transition-colors cursor-pointer",
               active === tab.id
                 ? "text-zinc-900 dark:text-zinc-100"
                 : "text-zinc-400 dark:text-zinc-500",
             )}
           >
-            <span className="text-xl leading-none">{tab.icon}</span>
+            <span className="flex items-center justify-center leading-none">{tab.icon}</span>
             <span>{tab.label}</span>
           </button>
         ))}
