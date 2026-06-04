@@ -51,3 +51,7 @@ export function parseWorkingHours(
 
   return base;
 }
+
+export function hasWorkingHoursConfigured(hours: WorkingHours): boolean {
+  return WEEKDAYS.some(({ key }) => hours[key].enabled);
+}

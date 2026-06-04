@@ -5,6 +5,7 @@ import { TabBar, type TabId } from "@/components/shared/TabBar";
 import { HomeTab } from "@/components/dashboard/HomeTab";
 import { ServicesTab } from "@/components/dashboard/ServicesTab";
 import { BookingsTab } from "@/components/dashboard/BookingsTab";
+import { StatisticsTab } from "@/components/dashboard/StatisticsTab";
 import { SettingsTab } from "@/components/dashboard/SettingsTab";
 import type { MasterWithMeta } from "@/types";
 import { Calendar } from "lucide-react";
@@ -16,6 +17,8 @@ type DashboardHomeProps = {
 
 export function DashboardHome({ master, onMasterUpdate }: DashboardHomeProps) {
   const [tab, setTab] = useState<TabId>("home");
+
+  const navigateTab = (next: TabId) => setTab(next);
 
   return (
     <div className="mx-auto min-h-screen w-full max-w-lg pb-24">
@@ -29,9 +32,9 @@ export function DashboardHome({ master, onMasterUpdate }: DashboardHomeProps) {
               className="h-9 w-9 rounded-full object-cover"
             />
           ) : (
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-lg dark:bg-zinc-800">
-            <Calendar className="w-5 h-5" />
-           </div>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800">
+              <Calendar className="h-5 w-5" />
+            </div>
           )}
           <div>
             <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -43,9 +46,14 @@ export function DashboardHome({ master, onMasterUpdate }: DashboardHomeProps) {
       </header>
 
       <main className="px-4 py-4">
-        {tab === "home" && <HomeTab master={master} />}
+        {tab === "home" && (
+          <HomeTab master={master} onNavigateTab={navigateTab} />
+        )}
         {tab === "services" && <ServicesTab />}
-        {tab === "bookings" && <BookingsTab />}
+        {tab === "bookings" && (
+          <BookingsTab master={master} onNavigateTab={navigateTab} />
+        )}
+        {tab === "statistics" && <StatisticsTab master={master} />}
         {tab === "settings" && (
           <SettingsTab master={master} onMasterUpdate={onMasterUpdate} />
         )}

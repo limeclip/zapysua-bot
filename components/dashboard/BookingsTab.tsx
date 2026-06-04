@@ -1,17 +1,38 @@
-import { Card } from "@/components/ui/card";
+"use client";
 
-export function BookingsTab() {
+import Link from "next/link";
+import { CalendarView } from "@/components/dashboard/CalendarView";
+import { SubscriptionGate } from "@/components/shared/SubscriptionGate";
+import { Button } from "@/components/ui/button";
+import type { MasterWithMeta } from "@/types";
+import type { TabId } from "@/components/shared/TabBar";
+import { List } from "lucide-react";
+
+type BookingsTabProps = {
+  master: MasterWithMeta;
+  onNavigateTab: (tab: TabId) => void;
+};
+
+export function BookingsTab({ master, onNavigateTab }: BookingsTabProps) {
   return (
-    <Card className="animate-in fade-in">
-      <div className="py-8 text-center">
-        <div className="mb-3 text-4xl">📅</div>
-        <h2 className="mb-2 font-medium text-zinc-900 dark:text-zinc-100">
-          Записи
-        </h2>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Тут з&apos;явиться календар записів клієнтів. Незабаром!
-        </p>
+    <SubscriptionGate master={master}>
+      <div className="space-y-4 animate-in fade-in">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+            Календар
+          </h2>
+          <Link href="/bookings">
+            <Button variant="ghost" size="sm">
+              <List className="h-4 w-4" />
+              Список
+            </Button>
+          </Link>
+        </div>
+        <CalendarView
+          master={master}
+          onOpenSettings={() => onNavigateTab("settings")}
+        />
       </div>
-    </Card>
+    </SubscriptionGate>
   );
 }

@@ -87,6 +87,53 @@ export type MasterWithMeta = Master & {
   is_onboarded: boolean;
 };
 
+export type BookingStatus =
+  | "pending"
+  | "confirmed"
+  | "cancelled"
+  | "completed"
+  | "no_show";
+
+export type Booking = {
+  id: string;
+  master_id: string;
+  client_telegram_id: number | null;
+  client_name: string;
+  client_phone: string | null;
+  service_id: string | null;
+  booking_start: string;
+  duration_minutes: number;
+  status: BookingStatus;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BookingService = {
+  id: string;
+  name: string;
+  price: number;
+};
+
+export type BookingWithService = Booking & {
+  services: BookingService | null;
+};
+
+export type BookingStatistics = {
+  period: "week" | "month";
+  total_bookings: number;
+  confirmed_count: number;
+  cancelled_count: number;
+  no_show_count: number;
+  completed_count: number;
+  pending_count: number;
+  confirmed_percent: number;
+  cancelled_percent: number;
+  no_show_percent: number;
+  revenue: number | null;
+  avg_per_day: number;
+};
+
 export type CreateServiceInput = {
   name: string;
   price: number;

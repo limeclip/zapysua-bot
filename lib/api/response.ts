@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { getTelegramUserFromRequest } from "@/lib/telegram/auth";
 import type { TelegramWebAppUser } from "@/lib/telegram/auth";
 import { getMasterByTelegramId } from "@/lib/api/masters";
-import type { Master } from "@/types";
+import type { Master, MasterWithMeta } from "@/types";
+import { getMasterWithMeta } from "@/lib/api/masters";
+import { isSubscriptionActive } from "@/lib/subscription";
 
 export function unauthorized() {
   return NextResponse.json(
@@ -17,6 +19,13 @@ export function badRequest(message: string) {
 
 export function serverError(message = "Внутрішня помилка сервера") {
   return NextResponse.json({ error: message }, { status: 500 });
+}
+
+export function subscriptionRequired() {
+  return NextResponse.json(
+    { error: "Потрібна активна підписка", code: "subscription_required" },
+    { status: 403 },
+  );
 }
 
 type ApiError = { error: NextResponse<{ error: string }> };
@@ -45,4 +54,31 @@ export async function requireMaster(
   }
 
   return { user: authResult.user, master };
+}
+
+export async function requireMasterWithSubscription(
+  request: Request,
+): Promise<
+  | { user: TelegramWebAppUser; master: Master; masterMeta: MasterWithMeta }
+  | ApiError
+> {
+  const authResult = await requireTelegramUser(request);
+  if ("error" in authResult) {
+    return authResult;
+  }
+
+  const masterMeta = await getMasterWithMeta(authResult.user.id);
+  if (!masterMeta) {
+    return { error: badRequest("Майстра не знайдено. Пройдіть онбординг.") };
+  }
+
+  if (!isSubscriptionActive(masterMeta.subscription)) {
+    return { error: subscriptionRequired() };
+  }
+
+  return {
+    user: authResult.user,
+    master: masterMeta,
+    masterMeta,
+  };
 }
