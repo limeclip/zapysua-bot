@@ -9,9 +9,10 @@ import {
   getWebAppBaseUrl,
 } from "@/lib/referral";
 import {
-  getOrCreateMinimalMaster,
-  isMasterOnboarded,
+  getMasterByTelegramId,
   setTelegramContext,
+  needsOnboarding,
+  hasAiSettings,
 } from "@/lib/supabaseClient";
 import type { BotContext, Master } from "@/types";
 
@@ -65,6 +66,7 @@ export { getReferralLink };
 
 export const bot = new Bot<BotContext>(getBotToken());
 
+// Middleware: тільки встановлюємо контекст, не створюємо майстра!
 const masterMiddleware: MiddlewareFn<BotContext> = async (ctx, next) => {
   const from = ctx.from;
   if (!from) {
@@ -73,21 +75,12 @@ const masterMiddleware: MiddlewareFn<BotContext> = async (ctx, next) => {
 
   try {
     await setTelegramContext(from.id);
-
-    const { master } = await getOrCreateMinimalMaster(
-      from.id,
-      from.username,
-    );
-
-    ctx.master = master;
+    const master = await getMasterByTelegramId(from.id);
+    ctx.master = master ?? undefined;
   } catch (error) {
     console.error("[bot] masterMiddleware:", error);
-    await ctx.reply(
-      "⚠️ Не вдалося завантажити профіль. Спробуйте пізніше.",
-    );
-    return;
+    // Не блокуємо виконання
   }
-
   await next();
 };
 
@@ -96,15 +89,14 @@ bot.use(masterMiddleware);
 bot.command("start", async (ctx) => {
   const startParam = ctx.match?.trim() ?? "";
 
+  // Випадок 1: є параметр start (клієнтське посилання)
   if (startParam) {
     try {
       const referredMaster = await findMasterByStartParam(startParam);
-
       if (!referredMaster) {
         await ctx.reply("Такого майстра не існує.");
         return;
       }
-
       await sendClientWelcome(ctx, referredMaster);
     } catch (error) {
       console.error("[bot] /start client:", error);
@@ -113,25 +105,36 @@ bot.command("start", async (ctx) => {
     return;
   }
 
-  if (!ctx.master) return;
-
-  try {
-    const onboarded = await isMasterOnboarded(ctx.master);
-
-    if (!onboarded) {
-      await ctx.reply(
-        "🚀 Вітаємо в ZapysUa!\n\nНатисніть кнопку, щоб створити вашого AI-адміністратора за 2 хвилини.",
-        { reply_markup: webAppInlineKeyboard("Розпочати") },
-      );
-      return;
-    }
-
+  // Випадок 2: немає параметра – працюємо з майстром
+  const master = ctx.master;
+  if (!master) {
+    // Користувач не є майстром
     await ctx.reply(
-      `Раді вас бачити, ${ctx.master.business_name}! 👋\n\nВідкрийте ваш кабінет, щоб керувати записами.`,
-      { reply_markup: webAppInlineKeyboard("Відкрити кабінет") },
+      "👋 Вітаємо в ZapysUa!\n\n" +
+      "Ви ще не зареєстровані як майстер. Бажаєте створити свого AI-адміністратора?",
+      {
+        reply_markup: new InlineKeyboard().url(
+          "Розпочати реєстрацію",
+          getWebAppBaseUrl(),
+        ),
+      },
     );
-  } catch (error) {
-    console.error("[bot] /start:", error);
-    await ctx.reply("⚠️ Щось пішло не так. Спробуйте /start ще раз.");
+    return;
   }
+
+  // Майстер існує – перевіряємо статус онбордингу
+  const onboarded = await hasAiSettings(master.id);
+  if (!onboarded || needsOnboarding(master)) {
+    await ctx.reply(
+      "🚀 Вітаємо в ZapysUa!\n\nНатисніть кнопку, щоб завершити реєстрацію та створити вашого AI-адміністратора.",
+      { reply_markup: webAppInlineKeyboard("Розпочати") },
+    );
+    return;
+  }
+
+  // Зареєстрований майстер
+  await ctx.reply(
+    `Раді вас бачити, ${master.business_name}! 👋\n\nВідкрийте ваш кабінет, щоб керувати записами.`,
+    { reply_markup: webAppInlineKeyboard("Відкрити кабінет") },
+  );
 });
