@@ -3,10 +3,7 @@ import {
   findMasterByStartParam,
   getActiveServicesForMaster,
 } from "@/lib/api/masters";
-import {
-  getClientWebAppEntryUrl,
-  getWebAppBaseUrl,
-} from "@/lib/referral";
+import { getClientAppUrl, getWebAppBaseUrl } from "@/lib/referral";
 import {
   getMasterByTelegramId,
   setTelegramContext,
@@ -48,7 +45,7 @@ async function sendClientWelcome(
 
   const keyboard = webAppInlineKeyboard(
     "Записатися",
-    getClientWebAppEntryUrl(master),
+    getClientAppUrl(master),
   );
 
   if (master.logo_url) {
@@ -60,8 +57,6 @@ async function sendClientWelcome(
     await ctx.reply(text, { reply_markup: keyboard });
   }
 }
-
-export { getClientDeepLink } from "@/lib/referral";
 
 export const bot = new Bot<BotContext>(getBotToken());
 
