@@ -13,7 +13,8 @@ const UK_MONTHS = [
   "Грудень",
 ] as const;
 
-const UK_WEEKDAYS_SHORT = ["Нд", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"] as const;
+/** Понеділок — перший день тижня (uk-UA). */
+const UK_WEEKDAYS_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"] as const;
 
 export function formatDateKey(date: Date, timeZone: string): string {
   return new Intl.DateTimeFormat("en-CA", {

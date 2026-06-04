@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiErrorState } from "@/components/shared/ApiErrorState";
 import { BookingList } from "@/components/bookings/BookingList";
+import { CreateBookingModal } from "@/components/bookings/CreateBookingModal";
 import {
   endOfMonth,
   formatBookingCount,
@@ -24,7 +25,7 @@ import {
 } from "@/lib/working-hours";
 import { cn } from "@/lib/utils";
 import type { BookingWithService, MasterWithMeta } from "@/types";
-import { ChevronLeft, ChevronRight, Clock, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Plus, X } from "lucide-react";
 import Link from "next/link";
 
 type CalendarViewProps = {
@@ -42,6 +43,7 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   const loadMonth = useCallback(async () => {
     try {
@@ -102,6 +104,16 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
     setBookings((prev) => prev.filter((b) => b.id !== id));
   };
 
+  const handleBookingCreated = (booking: BookingWithService) => {
+    setBookings((prev) =>
+      [...prev, booking].sort(
+        (a, b) =>
+          new Date(a.booking_start).getTime() -
+          new Date(b.booking_start).getTime(),
+      ),
+    );
+  };
+
   if (!hoursConfigured) {
     return (
       <Card className="text-center">
@@ -125,6 +137,19 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
 
   return (
     <div className="space-y-4">
+      <Button className="w-full" onClick={() => setCreateModalOpen(true)}>
+        <Plus className="h-4 w-4" />
+        Створити запис вручну
+      </Button>
+
+      <CreateBookingModal
+        master={master}
+        open={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        onCreated={handleBookingCreated}
+        defaultDate={selectedDay ?? undefined}
+      />
+
       <div className="flex items-center justify-between">
         <Button
           variant="ghost"

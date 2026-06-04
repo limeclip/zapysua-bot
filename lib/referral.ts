@@ -10,12 +10,30 @@ export function getBotUsername(): string {
   return process.env.NEXT_PUBLIC_BOT_USERNAME ?? "ZapysUaBot";
 }
 
-export function getReferralLink(
+/** Посилання t.me/start?startapp= — відкриває Mini App напряму (без /start у чаті). */
+export function getClientDeepLink(
   master: Pick<Master, "slug" | "id">,
   botUsername?: string,
 ): string {
   const bot = botUsername ?? getBotUsername();
-  return `https://t.me/${bot}?start=${getMasterStartParam(master)}`;
+  const param = getMasterStartParam(master);
+  return `https://t.me/${bot}/start?startapp=${encodeURIComponent(param)}`;
+}
+
+/** URL Web App для кнопки webApp у боті (редирект через /start). */
+export function getClientWebAppEntryUrl(
+  master: Pick<Master, "slug" | "id">,
+): string {
+  const param = getMasterStartParam(master);
+  return `${getWebAppBaseUrl()}/start?startapp=${encodeURIComponent(param)}`;
+}
+
+/** @deprecated Використовуйте getClientDeepLink */
+export function getReferralLink(
+  master: Pick<Master, "slug" | "id">,
+  botUsername?: string,
+): string {
+  return getClientDeepLink(master, botUsername);
 }
 
 export function getWebAppBaseUrl(): string {

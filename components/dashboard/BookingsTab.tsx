@@ -17,7 +17,7 @@ export function BookingsTab({ master, onNavigateTab }: BookingsTabProps) {
   return (
     <SubscriptionGate master={master}>
       <div className="space-y-4 animate-in fade-in">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
             Календар
           </h2>

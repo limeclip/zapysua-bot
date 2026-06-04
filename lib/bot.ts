@@ -4,8 +4,7 @@ import {
   getActiveServicesForMaster,
 } from "@/lib/api/masters";
 import {
-  getClientAppUrl,
-  getReferralLink,
+  getClientWebAppEntryUrl,
   getWebAppBaseUrl,
 } from "@/lib/referral";
 import {
@@ -49,7 +48,7 @@ async function sendClientWelcome(
 
   const keyboard = webAppInlineKeyboard(
     "Записатися",
-    getClientAppUrl(master),
+    getClientWebAppEntryUrl(master),
   );
 
   if (master.logo_url) {
@@ -62,7 +61,7 @@ async function sendClientWelcome(
   }
 }
 
-export { getReferralLink };
+export { getClientDeepLink } from "@/lib/referral";
 
 export const bot = new Bot<BotContext>(getBotToken());
 

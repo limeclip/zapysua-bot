@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
-import { getReferralLink } from "@/lib/referral";
+import { getClientDeepLink } from "@/lib/referral";
+import {
+  isValidSlug,
+  normalizeSlug,
+  slugValidationMessage,
+} from "@/lib/slug";
 import { parseWorkingHours, WEEKDAYS } from "@/lib/working-hours";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -38,15 +43,12 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
     parseWorkingHours(master.working_hours),
   );
   const [showHours, setShowHours] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [savingHours, setSavingHours] = useState(false);
   const [copied, setCopied] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
   const [businessName, setBusinessName] = useState(master.business_name);
   const [slug, setSlug] = useState(master.slug ?? "");
-  const [savingName, setSavingName] = useState(false);
-  const [savingSlug, setSavingSlug] = useState(false);
-  const [checkingSlug, setCheckingSlug] = useState(false);
-  const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
   const [description, setDescription] = useState(master.description ?? "");
   const [category, setCategory] = useState<MasterCategory>(master.category);
   const [location, setLocation] = useState(master.location ?? "");
@@ -55,6 +57,9 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
   const [socialTiktok, setSocialTiktok] = useState("");
   const [socialFacebook, setSocialFacebook] = useState("");
   const [socialTelegram, setSocialTelegram] = useState("");
+
+  const [checkingSlug, setCheckingSlug] = useState(false);
+  const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
@@ -72,7 +77,7 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
     setSocialTelegram(social.telegram);
   }, [master]);
 
-  const referralLink = getReferralLink(master);
+  const clientLink = getClientDeepLink(master);
 
   const saveTone = async (newTone: AiTone) => {
     setTone(newTone);
@@ -88,7 +93,7 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
   };
 
   const saveWorkingHours = async () => {
-    setSaving(true);
+    setSavingHours(true);
     try {
       await apiFetch("/api/masters/working-hours", {
         method: "PATCH",
@@ -99,37 +104,21 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Помилка");
     } finally {
-      setSaving(false);
-    }
-  };
-
-  const saveBusinessName = async () => {
-    const trimmed = businessName.trim();
-    if (trimmed.length < 2) {
-      setMessage("Назва занадто коротка");
-      return;
-    }
-
-    setSavingName(true);
-    try {
-      await apiFetch("/api/masters", {
-        method: "PATCH",
-        body: JSON.stringify({ business_name: trimmed }),
-      });
-      setMessage("Назву змінено");
-      onMasterUpdate();
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Помилка");
-    } finally {
-      setSavingName(false);
+      setSavingHours(false);
     }
   };
 
   const checkSlug = async () => {
-    const trimmed = slug.trim();
-    if (!trimmed) {
+    const normalized = normalizeSlug(slug);
+    if (!normalized) {
       setSlugAvailable(null);
       setMessage("Введіть slug для перевірки");
+      return;
+    }
+    const validationError = slugValidationMessage(normalized);
+    if (validationError) {
+      setMessage(validationError);
+      setSlugAvailable(false);
       return;
     }
 
@@ -137,7 +126,7 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
     setSlugAvailable(null);
     try {
       const data = await apiFetch<{ available: boolean; message: string | null }>(
-        `/api/masters/slug/check?slug=${encodeURIComponent(trimmed)}`,
+        `/api/masters/slug/check?slug=${encodeURIComponent(normalized)}`,
       );
       setSlugAvailable(data.available);
       setMessage(
@@ -150,31 +139,30 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
     }
   };
 
-  const saveSlug = async () => {
-    setSavingSlug(true);
-    setSlugAvailable(null);
-    try {
-      const payload =
-        slug.trim() === "" ? { slug: null } : { slug: slug.trim() };
-      await apiFetch("/api/masters", {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      });
-      setMessage("Посилання збережено");
-      onMasterUpdate();
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Помилка");
-    } finally {
-      setSavingSlug(false);
-    }
-  };
-
   const saveProfile = async () => {
+    const trimmedName = businessName.trim();
+    if (trimmedName.length < 2) {
+      setMessage("Назва бізнесу занадто коротка");
+      return;
+    }
+
+    const normalizedSlug = normalizeSlug(slug);
+    if (normalizedSlug) {
+      const validationError = slugValidationMessage(normalizedSlug);
+      if (validationError || !isValidSlug(normalizedSlug)) {
+        setMessage(validationError ?? "Невірний формат slug");
+        return;
+      }
+    }
+
     setSavingProfile(true);
+    setSlugAvailable(null);
     try {
       await apiFetch("/api/masters", {
         method: "PATCH",
         body: JSON.stringify({
+          business_name: trimmedName,
+          slug: normalizedSlug || null,
           description: description.trim() || null,
           category,
           location: location.trim() || null,
@@ -187,7 +175,7 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
           }),
         }),
       });
-      setMessage("Зміни збережено");
+      setMessage("Профіль оновлено");
       onMasterUpdate();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Помилка");
@@ -198,7 +186,7 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
 
   const copyLink = async () => {
     try {
-      await navigator.clipboard.writeText(referralLink);
+      await navigator.clipboard.writeText(clientLink);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -216,84 +204,64 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
         <p className="text-sm text-zinc-500">{message}</p>
       )}
 
-      <Card className="space-y-3">
-        <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Назва бізнесу
-        </p>
-        <Input
-          placeholder="Назва салону або майстра"
-          value={businessName}
-          onChange={(e) => setBusinessName(e.target.value)}
-        />
-        <Button
-          className="w-full"
-          disabled={savingName || businessName.trim().length < 2}
-          onClick={saveBusinessName}
-        >
-          {savingName ? "Збереження…" : "Зберегти"}
-        </Button>
-      </Card>
+      <Card className="space-y-4">
+        <div>
+          <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            Профіль
+          </p>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            Основна інформація для клієнтської сторінки
+          </p>
+        </div>
 
-      <Card className="space-y-3">
-        <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Коротке посилання (slug)
-        </p>
-        <p className="text-xs text-zinc-500">
-          Латинські літери, цифри, крапка або дефіс. Наприклад: olena.nails
-        </p>
-        <Input
-          placeholder="olena.nails"
-          value={slug}
-          onChange={(e) => {
-            setSlug(e.target.value.toLowerCase());
-            setSlugAvailable(null);
-          }}
-        />
-        <div className="flex gap-2">
+        <div className="space-y-2">
+          <label className="text-xs text-zinc-500">Назва бізнесу *</label>
+          <Input
+            placeholder="Назва салону або майстра"
+            value={businessName}
+            onChange={(e) => setBusinessName(e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs text-zinc-500">Коротке посилання (slug)</label>
+          <p className="text-[11px] text-zinc-400">
+            Латинські літери, цифри, крапка або дефіс. Без пробілів.
+          </p>
+          <Input
+            placeholder="margo.nails"
+            value={slug}
+            onChange={(e) => {
+              setSlug(
+                e.target.value.toLowerCase().replace(/\s/g, ""),
+              );
+              setSlugAvailable(null);
+            }}
+          />
           <Button
+            type="button"
             variant="outline"
-            className="flex-1"
+            className="w-full"
             disabled={checkingSlug || !slug.trim()}
             onClick={checkSlug}
           >
             {checkingSlug ? (
               <LoaderCircle className="h-4 w-4 animate-spin" />
             ) : (
-              "Перевірити"
+              "Перевірити доступність slug"
             )}
           </Button>
-          <Button
-            className="flex-1"
-            disabled={savingSlug}
-            onClick={saveSlug}
-          >
-            {savingSlug ? "Збереження…" : "Зберегти"}
-          </Button>
+          {slugAvailable === true && (
+            <p className="flex items-center gap-1 text-xs text-emerald-600">
+              <Check className="h-3.5 w-3.5" />
+              Посилання вільне
+            </p>
+          )}
+          {slugAvailable === false && (
+            <p className="text-xs text-red-500">Посилання зайняте або невірне</p>
+          )}
         </div>
-        {slugAvailable === true && (
-          <p className="flex items-center gap-1 text-xs text-emerald-600">
-            <Check className="h-3.5 w-3.5" />
-            Посилання вільне
-          </p>
-        )}
-        {slugAvailable === false && (
-          <p className="text-xs text-red-500">Посилання зайняте</p>
-        )}
-      </Card>
 
-      <Card className="space-y-3">
-        <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Профіль для клієнтів
-        </p>
-        <div className="space-y-2">
-          <label className="text-xs text-zinc-500">Опис</label>
-          <Textarea
-            placeholder="Розкажіть про себе та послуги"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={4}
-          />
-        </div>
         <div className="space-y-2">
           <label className="text-xs text-zinc-500">Категорія</label>
           <Select
@@ -307,6 +275,17 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
             ))}
           </Select>
         </div>
+
+        <div className="space-y-2">
+          <label className="text-xs text-zinc-500">Опис</label>
+          <Textarea
+            placeholder="Розкажіть про себе та послуги"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={4}
+          />
+        </div>
+
         <div className="space-y-2">
           <label className="text-xs text-zinc-500">Локація</label>
           <Input
@@ -315,42 +294,63 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
             onChange={(e) => setLocation(e.target.value)}
           />
         </div>
-        <div className="space-y-2">
-          <label className="text-xs text-zinc-500">Телефон</label>
-          <Input
-            type="tel"
-            placeholder="+380..."
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
+
+        <div className="border-t border-zinc-100 pt-4 dark:border-zinc-800">
+          <p className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            Контакти та соцмережі
+          </p>
+          <div className="space-y-2">
+            <label className="text-xs text-zinc-500">Телефон</label>
+            <Input
+              type="tel"
+              placeholder="+380..."
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+          </div>
+          <div className="mt-3 space-y-2">
+            <Input
+              placeholder="Instagram"
+              value={socialInstagram}
+              onChange={(e) => setSocialInstagram(e.target.value)}
+            />
+            <Input
+              placeholder="TikTok"
+              value={socialTiktok}
+              onChange={(e) => setSocialTiktok(e.target.value)}
+            />
+            <Input
+              placeholder="Facebook"
+              value={socialFacebook}
+              onChange={(e) => setSocialFacebook(e.target.value)}
+            />
+            <Input
+              placeholder="Telegram"
+              value={socialTelegram}
+              onChange={(e) => setSocialTelegram(e.target.value)}
+            />
+          </div>
         </div>
-        <p className="text-xs font-medium text-zinc-500">Соцмережі</p>
-        <Input
-          placeholder="Instagram"
-          value={socialInstagram}
-          onChange={(e) => setSocialInstagram(e.target.value)}
-        />
-        <Input
-          placeholder="TikTok"
-          value={socialTiktok}
-          onChange={(e) => setSocialTiktok(e.target.value)}
-        />
-        <Input
-          placeholder="Facebook"
-          value={socialFacebook}
-          onChange={(e) => setSocialFacebook(e.target.value)}
-        />
-        <Input
-          placeholder="Telegram"
-          value={socialTelegram}
-          onChange={(e) => setSocialTelegram(e.target.value)}
-        />
+
         <Button
           className="w-full"
-          disabled={savingProfile}
+          disabled={savingProfile || businessName.trim().length < 2}
           onClick={saveProfile}
         >
           {savingProfile ? "Збереження…" : "Зберегти зміни"}
+        </Button>
+      </Card>
+
+      <Card className="space-y-3">
+        <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          Посилання для клієнтів
+        </p>
+        <p className="text-xs text-zinc-500">
+          Відкриває Mini App напряму через Telegram
+        </p>
+        <p className="break-all text-xs text-zinc-500">{clientLink}</p>
+        <Button variant="outline" className="w-full" onClick={copyLink}>
+          {copied ? "Скопійовано" : "Скопіювати посилання"}
         </Button>
       </Card>
 
@@ -456,23 +456,13 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
             })}
             <Button
               className="w-full"
-              disabled={saving}
+              disabled={savingHours}
               onClick={saveWorkingHours}
             >
-              {saving ? "Збереження…" : "Зберегти графік"}
+              {savingHours ? "Збереження…" : "Зберегти графік"}
             </Button>
           </div>
         )}
-      </Card>
-
-      <Card className="space-y-3">
-        <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Посилання для клієнтів
-        </p>
-        <p className="break-all text-xs text-zinc-500">{referralLink}</p>
-        <Button variant="outline" className="w-full" onClick={copyLink}>
-          {copied ? "Скопійовано" : "Скопіювати посилання"}
-        </Button>
       </Card>
     </div>
   );
