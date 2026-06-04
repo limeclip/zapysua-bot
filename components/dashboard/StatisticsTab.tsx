@@ -10,6 +10,7 @@ import type { BookingStatistics, MasterWithMeta } from "@/types";
 import {
   Ban,
   CalendarCheck,
+  CheckCircle2,
   CircleDollarSign,
   TrendingUp,
   UserX,
@@ -41,6 +42,58 @@ function StatCard({
           {value}
         </p>
         {sub && <p className="text-xs text-zinc-400">{sub}</p>}
+      </div>
+    </Card>
+  );
+}
+
+function RevenueBlock({
+  monthStats,
+  weekStats,
+}: {
+  monthStats: BookingStatistics | null;
+  weekStats: BookingStatistics | null;
+}) {
+  const monthRevenue = monthStats?.revenue;
+  const weekRevenue = weekStats?.revenue;
+
+  if (monthRevenue === null && weekRevenue === null) return null;
+  if (monthRevenue === undefined && weekRevenue === undefined) return null;
+
+  return (
+    <Card className="space-y-3">
+      <div className="flex items-center gap-2">
+        <CircleDollarSign className="h-5 w-5 text-zinc-600" />
+        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+          Виручка
+        </p>
+      </div>
+      <p className="text-xs text-zinc-500">
+        Лише завершені записи з ціною послуги
+      </p>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/50">
+          <p className="text-[10px] text-zinc-500">За місяць</p>
+          <p className="text-lg font-semibold">
+            {monthRevenue != null ? `${monthRevenue} грн` : "—"}
+          </p>
+          {monthStats && (
+            <p className="text-[10px] text-zinc-400">
+              {monthStats.completed_count} виконано
+            </p>
+          )}
+        </div>
+        <div className="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/50">
+          <p className="text-[10px] text-zinc-500">За тиждень</p>
+          <p className="text-lg font-semibold">
+            {weekRevenue != null ? `${weekRevenue} грн` : "—"}
+          </p>
+          {weekStats && (
+            <p className="text-[10px] text-zinc-400">
+              {weekStats.completed_count} виконано
+            </p>
+          )}
+        </div>
       </div>
     </Card>
   );
@@ -110,48 +163,50 @@ export function StatisticsTab({ master }: StatisticsTabProps) {
 
         {loading ? (
           <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
+            {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-20 w-full" />
             ))}
           </div>
-        ) : stats ? (
-          <div className="space-y-3">
-            <StatCard
-              label={`Записів за ${periodLabel}`}
-              value={String(stats.total_bookings)}
-              sub={`~${stats.avg_per_day} на день`}
-              icon={<CalendarCheck className="h-5 w-5 text-zinc-600" />}
-            />
-            <StatCard
-              label="Підтверджені"
-              value={`${stats.confirmed_percent}%`}
-              sub={`${stats.confirmed_count} записів`}
-              icon={<TrendingUp className="h-5 w-5 text-zinc-600" />}
-            />
-            <StatCard
-              label="Скасовані"
-              value={`${stats.cancelled_percent}%`}
-              sub={`${stats.cancelled_count} записів`}
-              icon={<Ban className="h-5 w-5 text-zinc-600" />}
-            />
-            <StatCard
-              label="Не з'явилися"
-              value={`${stats.no_show_percent}%`}
-              sub={`${stats.no_show_count} записів`}
-              icon={<UserX className="h-5 w-5 text-zinc-600" />}
-            />
-            {stats.revenue !== null && (
-              <StatCard
-                label="Орієнтовна виручка"
-                value={`${stats.revenue} грн`}
-                sub="Завершені записи з ціною послуги"
-                icon={
-                  <CircleDollarSign className="h-5 w-5 text-zinc-600" />
-                }
-              />
+        ) : (
+          <>
+            <RevenueBlock monthStats={monthStats} weekStats={weekStats} />
+
+            {stats && (
+              <div className="space-y-3">
+                <StatCard
+                  label={`Записів за ${periodLabel}`}
+                  value={String(stats.total_bookings)}
+                  sub={`~${stats.avg_per_day} на день`}
+                  icon={<CalendarCheck className="h-5 w-5 text-zinc-600" />}
+                />
+                <StatCard
+                  label="Виконано"
+                  value={String(stats.completed_count)}
+                  sub="Завершені записи"
+                  icon={<CheckCircle2 className="h-5 w-5 text-zinc-600" />}
+                />
+                <StatCard
+                  label="Підтверджені"
+                  value={`${stats.confirmed_percent}%`}
+                  sub={`${stats.confirmed_count} записів`}
+                  icon={<TrendingUp className="h-5 w-5 text-zinc-600" />}
+                />
+                <StatCard
+                  label="Скасовані"
+                  value={`${stats.cancelled_percent}%`}
+                  sub={`${stats.cancelled_count} записів`}
+                  icon={<Ban className="h-5 w-5 text-zinc-600" />}
+                />
+                <StatCard
+                  label="Не з'явилися"
+                  value={`${stats.no_show_percent}%`}
+                  sub={`${stats.no_show_count} записів`}
+                  icon={<UserX className="h-5 w-5 text-zinc-600" />}
+                />
+              </div>
             )}
-          </div>
-        ) : null}
+          </>
+        )}
       </div>
     </SubscriptionGate>
   );

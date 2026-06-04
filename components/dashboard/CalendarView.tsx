@@ -9,6 +9,7 @@ import { ApiErrorState } from "@/components/shared/ApiErrorState";
 import { BookingList } from "@/components/bookings/BookingList";
 import {
   endOfMonth,
+  formatBookingCount,
   formatDateKey,
   formatDateLong,
   formatMonthYear,
@@ -220,8 +221,13 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
           aria-modal="true"
         >
           <Card className="max-h-[70vh] w-full max-w-lg overflow-y-auto animate-in fade-in">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-semibold">{formatDateLong(selectedDay)}</h3>
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <div>
+                <h3 className="font-semibold">{formatDateLong(selectedDay)}</h3>
+                <p className="text-xs text-zinc-500">
+                  {formatBookingCount(selectedBookings.length)}
+                </p>
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
@@ -236,6 +242,7 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
               timeZone={timeZone}
               onBookingUpdated={handleBookingUpdated}
               compact
+              contextDay={selectedDay}
             />
             <Button
               variant="outline"

@@ -120,3 +120,42 @@ export function toIsoRangeStart(date: Date, timeZone: string): string {
 export function toIsoRangeEnd(date: Date, timeZone: string): string {
   return endOfDayInTimezone(date, timeZone).toISOString();
 }
+
+export function formatBookingDateTime(
+  iso: string,
+  timeZone: string,
+  options?: { contextDay?: string },
+): string {
+  const date = new Date(iso);
+  const time = formatTime(iso, timeZone);
+  const bookingDayKey = formatDateKey(date, timeZone);
+
+  if (options?.contextDay && bookingDayKey === options.contextDay) {
+    return time;
+  }
+
+  const todayKey = formatDateKey(new Date(), timeZone);
+  const tomorrowKey = formatDateKey(
+    addDays(startOfDayInTimezone(new Date(), timeZone), 1),
+    timeZone,
+  );
+
+  if (bookingDayKey === todayKey) {
+    return `${time} (сьогодні)`;
+  }
+  if (bookingDayKey === tomorrowKey) {
+    return `${time} (завтра)`;
+  }
+
+  const [, month, day] = bookingDayKey.split("-");
+  return `${time} – ${day}.${month}.${bookingDayKey.slice(0, 4)}`;
+}
+
+export function formatBookingCount(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod100 >= 11 && mod100 <= 14) return `${count} записів`;
+  if (mod10 === 1) return `${count} запис`;
+  if (mod10 >= 2 && mod10 <= 4) return `${count} записи`;
+  return `${count} записів`;
+}
