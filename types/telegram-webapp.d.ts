@@ -11,6 +11,8 @@ interface TelegramWebAppInitData {
   user?: TelegramWebAppUser;
   auth_date?: number;
   hash?: string;
+  /** Параметр з посилання t.me/bot/app?startapp=... */
+  start_param?: string;
 }
 
 interface TelegramWebApp {

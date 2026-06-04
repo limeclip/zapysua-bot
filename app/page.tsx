@@ -1,22 +1,39 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MiniAppShell } from "@/components/MiniAppShell";
 import { LoaderCircle } from "lucide-react";
 
 function HomeContent() {
-  const searchParams = useSearchParams();
   const router = useRouter();
-  const startapp = searchParams.get("startapp")?.trim();
+  const searchParams = useSearchParams();
+  const urlStartParam = searchParams.get("startapp")?.trim() || null;
+
+  const [resolved, setResolved] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(Boolean(urlStartParam));
 
   useEffect(() => {
-    if (startapp) {
-      router.replace(`/client/${encodeURIComponent(startapp)}`);
-    }
-  }, [startapp, router]);
+    const tg = window.Telegram?.WebApp;
+    const tgStartParam = tg?.initDataUnsafe?.start_param?.trim() || null;
 
-  if (startapp) {
+    console.log("startapp from URL:", urlStartParam);
+    console.log("startapp from Telegram:", tgStartParam);
+
+    const finalStartParam = urlStartParam || tgStartParam;
+
+    if (finalStartParam) {
+      setIsRedirecting(true);
+      router.replace(`/client/${encodeURIComponent(finalStartParam)}`);
+      setResolved(true);
+      return;
+    }
+
+    setIsRedirecting(false);
+    setResolved(true);
+  }, [router, urlStartParam]);
+
+  if (!resolved || isRedirecting) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-6">
         <LoaderCircle className="h-8 w-8 animate-spin text-zinc-400" />
