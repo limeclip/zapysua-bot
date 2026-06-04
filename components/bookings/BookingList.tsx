@@ -1,17 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { BookingStatusBadge } from "@/components/bookings/BookingStatusBadge";
 import { formatBookingDateTime } from "@/lib/dates";
-import type { BookingStatus, BookingWithService } from "@/types";
+import type { BookingStatus, BookingWithService, Customer } from "@/types";
 import {
   Check,
   CheckCircle2,
+  MoreVertical,
   Phone,
   Trash2,
+  User,
   UserX,
   X,
 } from "lucide-react";
@@ -33,9 +43,10 @@ export function BookingList({
   compact = false,
   contextDay,
 }: BookingListProps) {
+  const router = useRouter();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [menuLoadingId, setMenuLoadingId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -79,7 +90,6 @@ export function BookingList({
       try {
         await apiFetch(`/api/bookings/${id}`, { method: "DELETE" });
         onBookingDeleted?.(id);
-        setConfirmDeleteId(null);
         setSuccessMessage("Запис видалено");
       } catch (err) {
         setErrorMessage(
@@ -90,6 +100,35 @@ export function BookingList({
       }
     },
     [onBookingDeleted],
+  );
+
+  const openCustomerProfile = useCallback(
+    async (booking: BookingWithService) => {
+      if (!booking.client_telegram_id) {
+        alert("Інформація про клієнта буде доступна пізніше");
+        return;
+      }
+
+      setMenuLoadingId(booking.id);
+      setErrorMessage(null);
+      try {
+        const data = await apiFetch<{ customer: Customer | null }>(
+          `/api/customers?telegram_id=${booking.client_telegram_id}`,
+        );
+        if (data.customer) {
+          router.push(`/customers/${data.customer.id}`);
+        } else {
+          alert("Інформація про клієнта буде доступна пізніше");
+        }
+      } catch (err) {
+        setErrorMessage(
+          err instanceof Error ? err.message : "Помилка завантаження",
+        );
+      } finally {
+        setMenuLoadingId(null);
+      }
+    },
+    [router],
   );
 
   if (bookings.length === 0) {
@@ -115,8 +154,10 @@ export function BookingList({
 
       <ul className="space-y-3">
         {bookings.map((booking) => {
-          const busy = updatingId === booking.id || deletingId === booking.id;
-          const confirming = confirmDeleteId === booking.id;
+          const busy =
+            updatingId === booking.id ||
+            deletingId === booking.id ||
+            menuLoadingId === booking.id;
 
           return (
             <Card key={booking.id} className={compact ? "p-3" : undefined}>
@@ -146,7 +187,34 @@ export function BookingList({
                     </a>
                   )}
                 </div>
-                <BookingStatusBadge status={booking.status} />
+                <div className="flex shrink-0 items-center gap-1">
+                  <BookingStatusBadge status={booking.status} />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-[14px] text-zinc-500 transition-colors hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800"
+                      disabled={busy}
+                      aria-label="Додаткові дії"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => openCustomerProfile(booking)}
+                      >
+                        <User className="h-4 w-4" />
+                        Про клієнта
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-red-600 focus:text-red-600 dark:text-red-400"
+                        onClick={() => deleteBooking(booking.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Видалити
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
 
               {booking.status === "pending" && (
@@ -207,45 +275,6 @@ export function BookingList({
                     </Button>
                   </div>
                 </div>
-              )}
-
-              {confirming ? (
-                <div className="mt-3 space-y-2 rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                    Ви впевнені, що хочете видалити запис?
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      disabled={busy}
-                      onClick={() => setConfirmDeleteId(null)}
-                    >
-                      Ні
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="flex-1"
-                      disabled={busy}
-                      onClick={() => deleteBooking(booking.id)}
-                    >
-                      Так, видалити
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="mt-3 w-full text-zinc-500"
-                  disabled={busy}
-                  onClick={() => setConfirmDeleteId(booking.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Видалити
-                </Button>
               )}
             </Card>
           );

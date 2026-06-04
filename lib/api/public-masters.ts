@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
-import type { PublicMasterProfile, Service } from "@/types";
+import type { MasterCategory, PublicMasterProfile, Service } from "@/types";
 
 export async function resolveMasterBySlugOrRef(
   slugOrRef: string,
@@ -30,7 +30,9 @@ export async function getPublicMasterProfile(
 ): Promise<PublicMasterProfile | null> {
   let query = supabaseAdmin
     .from("masters")
-    .select("id, business_name, logo_url, description, slug")
+    .select(
+      "id, business_name, logo_url, description, category, location, phone, social_links",
+    )
     .eq("is_active", true);
 
   if (slugOrRef.startsWith("ref_")) {
@@ -57,7 +59,10 @@ export async function getPublicMasterProfile(
     business_name: master.business_name,
     logo_url: master.logo_url,
     description: master.description,
-    slug: master.slug,
+    category: master.category as MasterCategory,
+    location: master.location,
+    phone: master.phone,
+    social_links: (master.social_links as PublicMasterProfile["social_links"]) ?? null,
     services: (services ?? []) as Pick<
       Service,
       "id" | "name" | "price" | "duration_minutes" | "description"

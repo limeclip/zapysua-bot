@@ -7,6 +7,13 @@ export type MasterCategory =
   | "auto"
   | "other";
 
+export type SocialLinks = {
+  instagram?: string;
+  tiktok?: string;
+  facebook?: string;
+  telegram?: string;
+};
+
 export type Master = {
   id: string;
   telegram_id: number;
@@ -17,9 +24,22 @@ export type Master = {
   description: string | null;
   category: MasterCategory;
   location: string | null;
+  phone?: string | null;
+  social_links?: SocialLinks | null;
   timezone: string;
   working_hours: Record<string, unknown>;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Customer = {
+  id: string;
+  master_id: string;
+  telegram_id?: number | null;
+  name: string;
+  phone?: string | null;
+  avatar_url?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -49,15 +69,21 @@ export type UpdateMasterInput = {
   slug?: string | null;
   category?: MasterCategory;
   location?: string | null;
+  description?: string | null;
+  phone?: string | null;
+  social_links?: SocialLinks;
   username?: string | null;
 };
 
 export type PublicMasterProfile = {
   id: string;
   business_name: string;
-  logo_url: string | null;
-  description: string | null;
-  slug: string | null;
+  logo_url?: string | null;
+  description?: string | null;
+  category: MasterCategory;
+  location?: string | null;
+  phone?: string | null;
+  social_links?: SocialLinks | null;
   services: Pick<
     Service,
     "id" | "name" | "price" | "duration_minutes" | "description"

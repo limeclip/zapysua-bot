@@ -20,7 +20,7 @@ export function ClientPageContent({ slug }: { slug: string }) {
       try {
         setLoading(true);
         const res = await fetch(
-          `/api/public/masters?slug=${encodeURIComponent(slug)}`,
+          `/api/public/masters/${encodeURIComponent(slug)}`,
         );
         if (res.status === 404) {
           if (!cancelled) setNotFound(true);

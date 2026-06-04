@@ -7,6 +7,31 @@ import {
   serverError,
 } from "@/lib/api/response";
 import { isValidSlug, normalizeSlug, slugValidationMessage } from "@/lib/slug";
+import { parseSocialLinksInput } from "@/lib/social-links";
+import type { MasterCategory, SocialLinks } from "@/types";
+
+const VALID_CATEGORIES: MasterCategory[] = [
+  "beauty",
+  "health",
+  "education",
+  "auto",
+  "other",
+];
+
+function parseSocialLinksBody(
+  body: unknown,
+): SocialLinks | { error: ReturnType<typeof badRequest> } {
+  if (body === null || typeof body !== "object" || Array.isArray(body)) {
+    return { error: badRequest("Невірний формат social_links") };
+  }
+  const raw = body as Record<string, unknown>;
+  return parseSocialLinksInput({
+    instagram: String(raw.instagram ?? ""),
+    tiktok: String(raw.tiktok ?? ""),
+    facebook: String(raw.facebook ?? ""),
+    telegram: String(raw.telegram ?? ""),
+  });
+}
 
 export async function PATCH(request: Request) {
   try {
@@ -46,6 +71,39 @@ export async function PATCH(request: Request) {
 
         updates.slug = slug;
       }
+    }
+
+    if (body.description !== undefined) {
+      const description =
+        body.description === null ? null : String(body.description).trim();
+      if (description && description.length > 2000) {
+        return badRequest("Опис занадто довгий");
+      }
+      updates.description = description || null;
+    }
+
+    if (body.category !== undefined) {
+      const category = body.category as MasterCategory;
+      if (!VALID_CATEGORIES.includes(category)) {
+        return badRequest("Невірна категорія");
+      }
+      updates.category = category;
+    }
+
+    if (body.location !== undefined) {
+      updates.location =
+        body.location === null ? null : String(body.location).trim() || null;
+    }
+
+    if (body.phone !== undefined) {
+      updates.phone =
+        body.phone === null ? null : String(body.phone).trim() || null;
+    }
+
+    if (body.social_links !== undefined) {
+      const linksResult = parseSocialLinksBody(body.social_links);
+      if ("error" in linksResult) return linksResult.error;
+      updates.social_links = linksResult;
     }
 
     if (Object.keys(updates).length === 0) {

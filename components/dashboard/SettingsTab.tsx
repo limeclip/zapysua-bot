@@ -7,9 +7,16 @@ import { parseWorkingHours, WEEKDAYS } from "@/lib/working-hours";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { LogoUploader } from "@/components/shared/LogoUploader";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
-import type { AiTone, MasterWithMeta, WorkingHours } from "@/types";
+import { MASTER_CATEGORY_OPTIONS } from "@/lib/master-category";
+import {
+  parseSocialLinksInput,
+  socialLinksToForm,
+} from "@/lib/social-links";
+import type { AiTone, MasterCategory, MasterWithMeta, WorkingHours } from "@/types";
 import { Check, LoaderCircle } from "lucide-react";
 
 const TONE_OPTIONS: { value: AiTone; label: string }[] = [
@@ -40,12 +47,30 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
   const [savingSlug, setSavingSlug] = useState(false);
   const [checkingSlug, setCheckingSlug] = useState(false);
   const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
+  const [description, setDescription] = useState(master.description ?? "");
+  const [category, setCategory] = useState<MasterCategory>(master.category);
+  const [location, setLocation] = useState(master.location ?? "");
+  const [phone, setPhone] = useState(master.phone ?? "");
+  const [socialInstagram, setSocialInstagram] = useState("");
+  const [socialTiktok, setSocialTiktok] = useState("");
+  const [socialFacebook, setSocialFacebook] = useState("");
+  const [socialTelegram, setSocialTelegram] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
     setBusinessName(master.business_name);
     setSlug(master.slug ?? "");
     setSlugAvailable(null);
-  }, [master.business_name, master.slug]);
+    setDescription(master.description ?? "");
+    setCategory(master.category);
+    setLocation(master.location ?? "");
+    setPhone(master.phone ?? "");
+    const social = socialLinksToForm(master.social_links);
+    setSocialInstagram(social.instagram);
+    setSocialTiktok(social.tiktok);
+    setSocialFacebook(social.facebook);
+    setSocialTelegram(social.telegram);
+  }, [master]);
 
   const referralLink = getReferralLink(master);
 
@@ -144,6 +169,33 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
     }
   };
 
+  const saveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      await apiFetch("/api/masters", {
+        method: "PATCH",
+        body: JSON.stringify({
+          description: description.trim() || null,
+          category,
+          location: location.trim() || null,
+          phone: phone.trim() || null,
+          social_links: parseSocialLinksInput({
+            instagram: socialInstagram,
+            tiktok: socialTiktok,
+            facebook: socialFacebook,
+            telegram: socialTelegram,
+          }),
+        }),
+      });
+      setMessage("Зміни збережено");
+      onMasterUpdate();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Помилка");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(referralLink);
@@ -227,6 +279,79 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
         {slugAvailable === false && (
           <p className="text-xs text-red-500">Посилання зайняте</p>
         )}
+      </Card>
+
+      <Card className="space-y-3">
+        <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          Профіль для клієнтів
+        </p>
+        <div className="space-y-2">
+          <label className="text-xs text-zinc-500">Опис</label>
+          <Textarea
+            placeholder="Розкажіть про себе та послуги"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={4}
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-xs text-zinc-500">Категорія</label>
+          <Select
+            value={category}
+            onChange={(e) => setCategory(e.target.value as MasterCategory)}
+          >
+            {MASTER_CATEGORY_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <label className="text-xs text-zinc-500">Локація</label>
+          <Input
+            placeholder="м. Київ, вул. Хрещатик 1"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-xs text-zinc-500">Телефон</label>
+          <Input
+            type="tel"
+            placeholder="+380..."
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+        </div>
+        <p className="text-xs font-medium text-zinc-500">Соцмережі</p>
+        <Input
+          placeholder="Instagram"
+          value={socialInstagram}
+          onChange={(e) => setSocialInstagram(e.target.value)}
+        />
+        <Input
+          placeholder="TikTok"
+          value={socialTiktok}
+          onChange={(e) => setSocialTiktok(e.target.value)}
+        />
+        <Input
+          placeholder="Facebook"
+          value={socialFacebook}
+          onChange={(e) => setSocialFacebook(e.target.value)}
+        />
+        <Input
+          placeholder="Telegram"
+          value={socialTelegram}
+          onChange={(e) => setSocialTelegram(e.target.value)}
+        />
+        <Button
+          className="w-full"
+          disabled={savingProfile}
+          onClick={saveProfile}
+        >
+          {savingProfile ? "Збереження…" : "Зберегти зміни"}
+        </Button>
       </Card>
 
       <Card className="space-y-3">
