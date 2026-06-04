@@ -61,6 +61,10 @@ export function BookingsPageContent({ master }: { master: MasterWithMeta }) {
     }
   };
 
+  const handleBookingDeleted = (id: string) => {
+    setBookings((prev) => prev.filter((b) => b.id !== id));
+  };
+
   return (
     <SubscriptionGate master={master}>
       <div className="space-y-4 animate-in fade-in">
@@ -95,6 +99,7 @@ export function BookingsPageContent({ master }: { master: MasterWithMeta }) {
             bookings={bookings}
             timeZone={timeZone}
             onBookingUpdated={handleBookingUpdated}
+            onBookingDeleted={handleBookingDeleted}
           />
         )}
       </div>

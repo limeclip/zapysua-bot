@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
-import type { AiSettings, Master, MasterWithMeta } from "@/types";
+import { generateDefaultSlug } from "@/lib/slug";
+import type { AiSettings, Master, MasterWithMeta, Service } from "@/types";
 
 const DEFAULT_MASTER_NAME = "Новий майстер";
 
@@ -14,6 +15,80 @@ export async function getMasterByTelegramId(
 
   if (error) throw error;
   return data as Master | null;
+}
+
+export async function getMasterById(id: string): Promise<Master | null> {
+  const { data, error } = await supabaseAdmin
+    .from("masters")
+    .select("*")
+    .eq("id", id)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as Master | null;
+}
+
+export async function getMasterBySlug(slug: string): Promise<Master | null> {
+  const { data, error } = await supabaseAdmin
+    .from("masters")
+    .select("*")
+    .eq("slug", slug)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as Master | null;
+}
+
+export async function findMasterByStartParam(
+  param: string,
+): Promise<Master | null> {
+  const trimmed = param.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith("ref_")) {
+    return getMasterById(trimmed.slice(4));
+  }
+
+  if (/^\d+$/.test(trimmed)) {
+    return getMasterByTelegramId(parseInt(trimmed, 10));
+  }
+
+  return getMasterBySlug(trimmed);
+}
+
+export async function isSlugTaken(
+  slug: string,
+  excludeMasterId?: string,
+): Promise<boolean> {
+  let query = supabaseAdmin
+    .from("masters")
+    .select("id")
+    .eq("slug", slug);
+
+  if (excludeMasterId) {
+    query = query.neq("id", excludeMasterId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  return Boolean(data);
+}
+
+export async function getActiveServicesForMaster(
+  masterId: string,
+): Promise<Service[]> {
+  const { data, error } = await supabaseAdmin
+    .from("services")
+    .select("*")
+    .eq("master_id", masterId)
+    .eq("is_active", true)
+    .order("created_at", { ascending: true })
+    .limit(5);
+
+  if (error) throw error;
+  return (data ?? []) as Service[];
 }
 
 export async function getMasterWithMeta(
@@ -71,6 +146,7 @@ export async function ensureMinimalMaster(
       username: username ?? null,
       business_name: businessName,
       category: "other",
+      slug: generateDefaultSlug(telegramId),
     })
     .select("*")
     .single();

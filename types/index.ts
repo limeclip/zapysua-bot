@@ -12,6 +12,7 @@ export type Master = {
   telegram_id: number;
   username: string | null;
   business_name: string;
+  slug: string | null;
   logo_url: string | null;
   description: string | null;
   category: MasterCategory;
@@ -45,9 +46,22 @@ export type CreateMasterInput = {
 
 export type UpdateMasterInput = {
   business_name?: string;
+  slug?: string | null;
   category?: MasterCategory;
   location?: string | null;
   username?: string | null;
+};
+
+export type PublicMasterProfile = {
+  id: string;
+  business_name: string;
+  logo_url: string | null;
+  description: string | null;
+  slug: string | null;
+  services: Pick<
+    Service,
+    "id" | "name" | "price" | "duration_minutes" | "description"
+  >[];
 };
 
 export type AiTone = "friendly" | "professional" | "caring" | "formal";

@@ -98,6 +98,10 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
     );
   };
 
+  const handleBookingDeleted = (id: string) => {
+    setBookings((prev) => prev.filter((b) => b.id !== id));
+  };
+
   if (!hoursConfigured) {
     return (
       <Card className="text-center">
@@ -241,6 +245,7 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
               bookings={selectedBookings}
               timeZone={timeZone}
               onBookingUpdated={handleBookingUpdated}
+              onBookingDeleted={handleBookingDeleted}
               compact
               contextDay={selectedDay}
             />

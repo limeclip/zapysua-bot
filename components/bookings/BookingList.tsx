@@ -7,14 +7,21 @@ import { Card } from "@/components/ui/card";
 import { BookingStatusBadge } from "@/components/bookings/BookingStatusBadge";
 import { formatBookingDateTime } from "@/lib/dates";
 import type { BookingStatus, BookingWithService } from "@/types";
-import { Check, CheckCircle2, Phone, UserX, X } from "lucide-react";
+import {
+  Check,
+  CheckCircle2,
+  Phone,
+  Trash2,
+  UserX,
+  X,
+} from "lucide-react";
 
 type BookingListProps = {
   bookings: BookingWithService[];
   timeZone: string;
   onBookingUpdated: (booking: BookingWithService) => void;
+  onBookingDeleted?: (id: string) => void;
   compact?: boolean;
-  /** Якщо задано — у модалці календаря показувати лише час для записів цього дня */
   contextDay?: string;
 };
 
@@ -22,11 +29,15 @@ export function BookingList({
   bookings,
   timeZone,
   onBookingUpdated,
+  onBookingDeleted,
   compact = false,
   contextDay,
 }: BookingListProps) {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!successMessage) return;
@@ -37,6 +48,7 @@ export function BookingList({
   const updateStatus = useCallback(
     async (id: string, status: BookingStatus) => {
       setUpdatingId(id);
+      setErrorMessage(null);
       try {
         const data = await apiFetch<{ booking: BookingWithService }>(
           `/api/bookings/${id}`,
@@ -49,11 +61,35 @@ export function BookingList({
         if (status === "completed") {
           setSuccessMessage("Запис позначено як виконано");
         }
+      } catch (err) {
+        setErrorMessage(
+          err instanceof Error ? err.message : "Помилка оновлення",
+        );
       } finally {
         setUpdatingId(null);
       }
     },
     [onBookingUpdated],
+  );
+
+  const deleteBooking = useCallback(
+    async (id: string) => {
+      setDeletingId(id);
+      setErrorMessage(null);
+      try {
+        await apiFetch(`/api/bookings/${id}`, { method: "DELETE" });
+        onBookingDeleted?.(id);
+        setConfirmDeleteId(null);
+        setSuccessMessage("Запис видалено");
+      } catch (err) {
+        setErrorMessage(
+          err instanceof Error ? err.message : "Помилка видалення",
+        );
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [onBookingDeleted],
   );
 
   if (bookings.length === 0) {
@@ -71,10 +107,17 @@ export function BookingList({
           {successMessage}
         </p>
       )}
+      {errorMessage && (
+        <p className="rounded-[14px] bg-red-50 px-4 py-2.5 text-center text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
+          {errorMessage}
+        </p>
+      )}
 
       <ul className="space-y-3">
         {bookings.map((booking) => {
-          const busy = updatingId === booking.id;
+          const busy = updatingId === booking.id || deletingId === booking.id;
+          const confirming = confirmDeleteId === booking.id;
+
           return (
             <Card key={booking.id} className={compact ? "p-3" : undefined}>
               <div className="flex items-start justify-between gap-2">
@@ -164,6 +207,45 @@ export function BookingList({
                     </Button>
                   </div>
                 </div>
+              )}
+
+              {confirming ? (
+                <div className="mt-3 space-y-2 rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                    Ви впевнені, що хочете видалити запис?
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      disabled={busy}
+                      onClick={() => setConfirmDeleteId(null)}
+                    >
+                      Ні
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="flex-1"
+                      disabled={busy}
+                      onClick={() => deleteBooking(booking.id)}
+                    >
+                      Так, видалити
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-3 w-full text-zinc-500"
+                  disabled={busy}
+                  onClick={() => setConfirmDeleteId(booking.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Видалити
+                </Button>
               )}
             </Card>
           );

@@ -1,10 +1,19 @@
 import { Bot, InlineKeyboard, type MiddlewareFn } from "grammy";
 import {
+  findMasterByStartParam,
+  getActiveServicesForMaster,
+} from "@/lib/api/masters";
+import {
+  getClientAppUrl,
+  getReferralLink,
+  getWebAppBaseUrl,
+} from "@/lib/referral";
+import {
   getOrCreateMinimalMaster,
   isMasterOnboarded,
   setTelegramContext,
 } from "@/lib/supabaseClient";
-import type { BotContext } from "@/types";
+import type { BotContext, Master } from "@/types";
 
 function getBotToken(): string {
   const token = process.env.BOT_TOKEN;
@@ -14,20 +23,45 @@ function getBotToken(): string {
   return token;
 }
 
-function getWebAppUrl(): string {
-  if (process.env.WEBAPP_URL) {
-    return process.env.WEBAPP_URL;
-  }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  return "http://localhost:3000";
+function webAppInlineKeyboard(buttonText: string, url?: string) {
+  return new InlineKeyboard().webApp(
+    buttonText,
+    url ?? getWebAppBaseUrl(),
+  );
 }
 
-// ЗМІНА ТУТ: більше немає Keyboard, тільки InlineKeyboard
-function webAppInlineKeyboard(buttonText: string) {
-  return new InlineKeyboard().webApp(buttonText, getWebAppUrl());
+async function sendClientWelcome(
+  ctx: BotContext,
+  master: Master,
+): Promise<void> {
+  const services = await getActiveServicesForMaster(master.id);
+  const serviceNames = services.map((s) => s.name).slice(0, 3);
+  const serviceText =
+    serviceNames.length > 0
+      ? serviceNames.join(", ")
+      : "на будь-яку послугу";
+
+  const text =
+    `✨ Вітаємо в студії ${master.business_name}! ✨\n\n` +
+    `Я — AI-адміністратор ${master.business_name}. Допоможу записатися на ${serviceText}.\n\n` +
+    `Натисніть кнопку нижче, щоб переглянути послуги та обрати зручний час.`;
+
+  const keyboard = webAppInlineKeyboard(
+    "Записатися",
+    getClientAppUrl(master),
+  );
+
+  if (master.logo_url) {
+    await ctx.replyWithPhoto(master.logo_url, {
+      caption: text,
+      reply_markup: keyboard,
+    });
+  } else {
+    await ctx.reply(text, { reply_markup: keyboard });
+  }
 }
+
+export { getReferralLink };
 
 export const bot = new Bot<BotContext>(getBotToken());
 
@@ -60,6 +94,25 @@ const masterMiddleware: MiddlewareFn<BotContext> = async (ctx, next) => {
 bot.use(masterMiddleware);
 
 bot.command("start", async (ctx) => {
+  const startParam = ctx.match?.trim() ?? "";
+
+  if (startParam) {
+    try {
+      const referredMaster = await findMasterByStartParam(startParam);
+
+      if (!referredMaster) {
+        await ctx.reply("Такого майстра не існує.");
+        return;
+      }
+
+      await sendClientWelcome(ctx, referredMaster);
+    } catch (error) {
+      console.error("[bot] /start client:", error);
+      await ctx.reply("⚠️ Щось пішло не так. Спробуйте пізніше.");
+    }
+    return;
+  }
+
   if (!ctx.master) return;
 
   try {
@@ -68,14 +121,14 @@ bot.command("start", async (ctx) => {
     if (!onboarded) {
       await ctx.reply(
         "🚀 Вітаємо в ZapysUa!\n\nНатисніть кнопку, щоб створити вашого AI-адміністратора за 2 хвилини.",
-        { reply_markup: webAppInlineKeyboard("Розпочати") }, // ЗМІНА ТУТ
+        { reply_markup: webAppInlineKeyboard("Розпочати") },
       );
       return;
     }
 
     await ctx.reply(
       `Раді вас бачити, ${ctx.master.business_name}! 👋\n\nВідкрийте ваш кабінет, щоб керувати записами.`,
-      { reply_markup: webAppInlineKeyboard("Відкрити кабінет") }, // ЗМІНА ТУТ
+      { reply_markup: webAppInlineKeyboard("Відкрити кабінет") },
     );
   } catch (error) {
     console.error("[bot] /start:", error);

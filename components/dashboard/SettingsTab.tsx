@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
+import { getReferralLink } from "@/lib/referral";
 import { parseWorkingHours, WEEKDAYS } from "@/lib/working-hours";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -9,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { LogoUploader } from "@/components/shared/LogoUploader";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import type { AiTone, MasterWithMeta, WorkingHours } from "@/types";
+import { Check, LoaderCircle } from "lucide-react";
 
 const TONE_OPTIONS: { value: AiTone; label: string }[] = [
   { value: "friendly", label: "Дружній" },
@@ -33,15 +35,19 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
   const [copied, setCopied] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [businessName, setBusinessName] = useState(master.business_name);
+  const [slug, setSlug] = useState(master.slug ?? "");
   const [savingName, setSavingName] = useState(false);
+  const [savingSlug, setSavingSlug] = useState(false);
+  const [checkingSlug, setCheckingSlug] = useState(false);
+  const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {
     setBusinessName(master.business_name);
-  }, [master.business_name]);
+    setSlug(master.slug ?? "");
+    setSlugAvailable(null);
+  }, [master.business_name, master.slug]);
 
-  const botUsername =
-    process.env.NEXT_PUBLIC_BOT_USERNAME ?? "ZapysUaBot";
-  const referralLink = `https://t.me/${botUsername}?start=ref_${master.id}`;
+  const referralLink = getReferralLink(master);
 
   const saveTone = async (newTone: AiTone) => {
     setTone(newTone);
@@ -94,6 +100,50 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
     }
   };
 
+  const checkSlug = async () => {
+    const trimmed = slug.trim();
+    if (!trimmed) {
+      setSlugAvailable(null);
+      setMessage("Введіть slug для перевірки");
+      return;
+    }
+
+    setCheckingSlug(true);
+    setSlugAvailable(null);
+    try {
+      const data = await apiFetch<{ available: boolean; message: string | null }>(
+        `/api/masters/slug/check?slug=${encodeURIComponent(trimmed)}`,
+      );
+      setSlugAvailable(data.available);
+      setMessage(
+        data.available ? "Посилання вільне" : (data.message ?? "Зайнято"),
+      );
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Помилка перевірки");
+    } finally {
+      setCheckingSlug(false);
+    }
+  };
+
+  const saveSlug = async () => {
+    setSavingSlug(true);
+    setSlugAvailable(null);
+    try {
+      const payload =
+        slug.trim() === "" ? { slug: null } : { slug: slug.trim() };
+      await apiFetch("/api/masters", {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      setMessage("Посилання збережено");
+      onMasterUpdate();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Помилка");
+    } finally {
+      setSavingSlug(false);
+    }
+  };
+
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(referralLink);
@@ -130,6 +180,53 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
         >
           {savingName ? "Збереження…" : "Зберегти"}
         </Button>
+      </Card>
+
+      <Card className="space-y-3">
+        <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          Коротке посилання (slug)
+        </p>
+        <p className="text-xs text-zinc-500">
+          Латинські літери, цифри, крапка або дефіс. Наприклад: olena.nails
+        </p>
+        <Input
+          placeholder="olena.nails"
+          value={slug}
+          onChange={(e) => {
+            setSlug(e.target.value.toLowerCase());
+            setSlugAvailable(null);
+          }}
+        />
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="flex-1"
+            disabled={checkingSlug || !slug.trim()}
+            onClick={checkSlug}
+          >
+            {checkingSlug ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : (
+              "Перевірити"
+            )}
+          </Button>
+          <Button
+            className="flex-1"
+            disabled={savingSlug}
+            onClick={saveSlug}
+          >
+            {savingSlug ? "Збереження…" : "Зберегти"}
+          </Button>
+        </div>
+        {slugAvailable === true && (
+          <p className="flex items-center gap-1 text-xs text-emerald-600">
+            <Check className="h-3.5 w-3.5" />
+            Посилання вільне
+          </p>
+        )}
+        {slugAvailable === false && (
+          <p className="text-xs text-red-500">Посилання зайняте</p>
+        )}
       </Card>
 
       <Card className="space-y-3">
@@ -245,11 +342,11 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
 
       <Card className="space-y-3">
         <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Персональне посилання
+          Посилання для клієнтів
         </p>
         <p className="break-all text-xs text-zinc-500">{referralLink}</p>
         <Button variant="outline" className="w-full" onClick={copyLink}>
-          {copied ? "✓ Скопійовано" : "Скопіювати"}
+          {copied ? "Скопійовано" : "Скопіювати посилання"}
         </Button>
       </Card>
     </div>

@@ -47,3 +47,25 @@ export async function PATCH(request: Request, context: RouteContext) {
     return serverError("Не вдалося оновити запис");
   }
 }
+
+export async function DELETE(request: Request, context: RouteContext) {
+  try {
+    const authResult = await requireMasterWithSubscription(request);
+    if ("error" in authResult) return authResult.error;
+
+    const { id } = await context.params;
+
+    const { error } = await supabaseAdmin
+      .from("bookings")
+      .delete()
+      .eq("id", id)
+      .eq("master_id", authResult.master.id);
+
+    if (error) throw error;
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[api/bookings DELETE]", error);
+    return serverError("Не вдалося видалити запис");
+  }
+}

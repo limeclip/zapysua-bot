@@ -78,6 +78,10 @@ export function HomeTab({ master, onNavigateTab }: HomeTabProps) {
     load();
   };
 
+  const handleBookingDeleted = (id: string) => {
+    setTodayBookings((prev) => prev.filter((b) => b.id !== id));
+  };
+
   return (
     <div className="space-y-4 animate-in fade-in">
       <div>
@@ -128,6 +132,7 @@ export function HomeTab({ master, onNavigateTab }: HomeTabProps) {
                 bookings={todayBookings}
                 timeZone={timeZone}
                 onBookingUpdated={handleBookingUpdated}
+                onBookingDeleted={handleBookingDeleted}
                 compact
               />
             )}
