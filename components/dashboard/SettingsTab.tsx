@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
 import { parseWorkingHours, WEEKDAYS } from "@/lib/working-hours";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { LogoUploader } from "@/components/shared/LogoUploader";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import type { AiTone, MasterWithMeta, WorkingHours } from "@/types";
@@ -31,6 +32,12 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [businessName, setBusinessName] = useState(master.business_name);
+  const [savingName, setSavingName] = useState(false);
+
+  useEffect(() => {
+    setBusinessName(master.business_name);
+  }, [master.business_name]);
 
   const botUsername =
     process.env.NEXT_PUBLIC_BOT_USERNAME ?? "ZapysUaBot";
@@ -65,6 +72,28 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
     }
   };
 
+  const saveBusinessName = async () => {
+    const trimmed = businessName.trim();
+    if (trimmed.length < 2) {
+      setMessage("Назва занадто коротка");
+      return;
+    }
+
+    setSavingName(true);
+    try {
+      await apiFetch("/api/masters", {
+        method: "PATCH",
+        body: JSON.stringify({ business_name: trimmed }),
+      });
+      setMessage("Назву змінено");
+      onMasterUpdate();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Помилка");
+    } finally {
+      setSavingName(false);
+    }
+  };
+
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(referralLink);
@@ -84,6 +113,24 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
       {message && (
         <p className="text-sm text-zinc-500">{message}</p>
       )}
+
+      <Card className="space-y-3">
+        <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          Назва бізнесу
+        </p>
+        <Input
+          placeholder="Назва салону або майстра"
+          value={businessName}
+          onChange={(e) => setBusinessName(e.target.value)}
+        />
+        <Button
+          className="w-full"
+          disabled={savingName || businessName.trim().length < 2}
+          onClick={saveBusinessName}
+        >
+          {savingName ? "Збереження…" : "Зберегти"}
+        </Button>
+      </Card>
 
       <Card className="space-y-3">
         <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">

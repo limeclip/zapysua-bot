@@ -135,7 +135,7 @@ export function StatisticsTab({ master }: StatisticsTabProps) {
               icon={<Ban className="h-5 w-5 text-zinc-600" />}
             />
             <StatCard
-              label="No-show"
+              label="Не з'явилися"
               value={`${stats.no_show_percent}%`}
               sub={`${stats.no_show_count} записів`}
               icon={<UserX className="h-5 w-5 text-zinc-600" />}

@@ -190,7 +190,7 @@ export async function ensureMasterDefaults(
   if (!subscription) {
     const trialStart = new Date();
     const trialEnd = new Date();
-    trialEnd.setDate(trialEnd.getDate() + 14);
+    trialEnd.setDate(trialEnd.getDate() + 7);
 
     const { error: subError } = await supabase.from("subscriptions").insert({
       master_id: masterId,

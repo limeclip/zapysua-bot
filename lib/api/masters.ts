@@ -154,7 +154,7 @@ export async function completeOnboarding(params: {
   if (!existingSub) {
     const trialStart = new Date();
     const trialEnd = new Date();
-    trialEnd.setDate(trialEnd.getDate() + 14);
+    trialEnd.setDate(trialEnd.getDate() + 7);
 
     const { error: subError } = await supabaseAdmin.from("subscriptions").insert({
       master_id: master.id,

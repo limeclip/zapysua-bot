@@ -1,13 +1,6 @@
 import { Badge } from "@/components/ui/badge";
+import { BOOKING_STATUS_LABELS } from "@/lib/booking-status";
 import type { BookingStatus } from "@/types";
-
-const STATUS_LABELS: Record<BookingStatus, string> = {
-  pending: "Очікує",
-  confirmed: "Підтверджено",
-  cancelled: "Скасовано",
-  completed: "Завершено",
-  no_show: "Не з'явився",
-};
 
 const STATUS_VARIANTS: Record<
   BookingStatus,
@@ -22,6 +15,8 @@ const STATUS_VARIANTS: Record<
 
 export function BookingStatusBadge({ status }: { status: BookingStatus }) {
   return (
-    <Badge variant={STATUS_VARIANTS[status]}>{STATUS_LABELS[status]}</Badge>
+    <Badge variant={STATUS_VARIANTS[status]}>
+      {BOOKING_STATUS_LABELS[status]}
+    </Badge>
   );
 }

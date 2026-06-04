@@ -113,12 +113,12 @@ export function BookingList({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1"
+                  className="flex-1 text-xs"
                   disabled={busy}
                   onClick={() => updateStatus(booking.id, "no_show")}
                 >
-                  <UserX className="h-3.5 w-3.5" />
-                  No-show
+                  <UserX className="h-3.5 w-3.5 shrink-0" />
+                  Не з&apos;явився
                 </Button>
                 <Button
                   variant="outline"

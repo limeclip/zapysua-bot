@@ -7,15 +7,15 @@ import { ApiErrorState } from "@/components/shared/ApiErrorState";
 import { SubscriptionGate } from "@/components/shared/SubscriptionGate";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { BOOKING_STATUS_FILTER_LABELS } from "@/lib/booking-status";
 import type { BookingStatus, BookingWithService, MasterWithMeta } from "@/types";
 
-const FILTERS: { id: BookingStatus | "all"; label: string }[] = [
-  { id: "all", label: "Всі" },
-  { id: "pending", label: "Очікують" },
-  { id: "confirmed", label: "Підтверд." },
-  { id: "cancelled", label: "Скасовані" },
-  { id: "no_show", label: "No-show" },
-];
+const FILTERS: { id: BookingStatus | "all"; label: string }[] = (
+  ["all", "pending", "confirmed", "cancelled", "no_show"] as const
+).map((id) => ({
+  id,
+  label: BOOKING_STATUS_FILTER_LABELS[id],
+}));
 
 export function BookingsPageContent({ master }: { master: MasterWithMeta }) {
   const timeZone = master.timezone || "Europe/Kyiv";
