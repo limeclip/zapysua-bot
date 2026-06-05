@@ -10,7 +10,17 @@ export function getBotUsername(): string {
   return process.env.NEXT_PUBLIC_BOT_USERNAME ?? "ZapysUaBot";
 }
 
-/** Посилання для клієнта: відкриває чат з ботом, далі /start → кнопка web_app. */
+/** 
+ * ГЛАВНОЕ ПОСЫЛАНИЕ ДЛЯ КЛИЕНТА – через Main Mini App (стабильно)
+ * Формат: t.me/ZapysUaBot/app?startapp=slug
+ */
+export function getClientDeepLink(master: Pick<Master, "slug" | "id">): string {
+  const bot = getBotUsername();
+  const param = getMasterStartParam(master);
+  return `https://t.me/${bot}/app?startapp=${encodeURIComponent(param)}`;
+}
+
+/** Старое поcылание для бота (резерв, нестабильно) */
 export function getClientBotStartLink(
   master: Pick<Master, "slug" | "id">,
   botUsername?: string,
