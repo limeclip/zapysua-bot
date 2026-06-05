@@ -81,54 +81,10 @@ const masterMiddleware: MiddlewareFn<BotContext> = async (ctx, next) => {
 bot.use(masterMiddleware);
 
 bot.command("start", async (ctx) => {
-  const startParam = ctx.match?.trim() ?? "";
-
-  // Випадок 1: є параметр start (клієнтське посилання)
-  if (startParam) {
-    try {
-      const referredMaster = await findMasterByStartParam(startParam);
-      if (!referredMaster) {
-        await ctx.reply("Такого майстра не існує.");
-        return;
-      }
-      await sendClientWelcome(ctx, referredMaster);
-    } catch (error) {
-      console.error("[bot] /start client:", error);
-      await ctx.reply("⚠️ Щось пішло не так. Спробуйте пізніше.");
-    }
-    return;
-  }
-
-  // Випадок 2: немає параметра – працюємо з майстром
-  const master = ctx.master;
-  if (!master) {
-    // Користувач не є майстром
-    await ctx.reply(
-      "👋 Вітаємо в ZapysUa!\n\n" +
-      "Ви ще не зареєстровані як майстер. Бажаєте створити свого AI-адміністратора?",
-      {
-        reply_markup: new InlineKeyboard().url(
-          "Розпочати реєстрацію",
-          getWebAppBaseUrl(),
-        ),
-      },
-    );
-    return;
-  }
-
-  // Майстер існує – перевіряємо статус онбордингу
-  const onboarded = await hasAiSettings(master.id);
-  if (!onboarded || needsOnboarding(master)) {
-    await ctx.reply(
-      "🚀 Вітаємо в ZapysUa!\n\nНатисніть кнопку, щоб завершити реєстрацію та створити вашого AI-адміністратора.",
-      { reply_markup: webAppInlineKeyboard("Розпочати") },
-    );
-    return;
-  }
-
-  // Зареєстрований майстер
-  await ctx.reply(
-    `Раді вас бачити, ${master.business_name}! 👋\n\nВідкрийте ваш кабінет, щоб керувати записами.`,
-    { reply_markup: webAppInlineKeyboard("Відкрити кабінет") },
-  );
+  const payload = ctx.match; // параметр після /start
+  console.log("📩 Отримано /start. Payload:", payload);
+  await ctx.reply(`Отримано параметр: ${payload || "пусто"}`);
+  
+  // Додатковий лог для вебхука
+  console.log(`Користувач ${ctx.from?.id} надіслав /start з параметром: ${payload}`);
 });
