@@ -15,6 +15,18 @@ export async function OPTIONS() {
 
 export async function POST(req: Request) {
   try {
+    const raw = await req.clone().json().catch(() => null);
+    if (raw?.message?.text) {
+      const text = String(raw.message.text);
+      if (text.startsWith("/start")) {
+        console.log("[webhook] /start received:", {
+          text,
+          from: raw.message.from?.id,
+          username: raw.message.from?.username,
+        });
+      }
+    }
+
     const response = await handleUpdate(req);
 
     Object.entries(corsHeaders).forEach(([key, value]) => {
