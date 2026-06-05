@@ -10,24 +10,11 @@ export function getBotUsername(): string {
   return process.env.NEXT_PUBLIC_BOT_USERNAME ?? "ZapysUaBot";
 }
 
-/** 
- * ГЛАВНОЕ ПОСЫЛАНИЕ ДЛЯ КЛИЕНТА – через Main Mini App (стабильно)
- * Формат: t.me/ZapysUaBot/app?startapp=slug
- */
+/** Клієнтське посилання через Main Mini App (app у BotFather). */
 export function getClientDeepLink(master: Pick<Master, "slug" | "id">): string {
   const bot = getBotUsername();
   const param = getMasterStartParam(master);
   return `https://t.me/${bot}/app?startapp=${encodeURIComponent(param)}`;
-}
-
-/** Старое поcылание для бота (резерв, нестабильно) */
-export function getClientBotStartLink(
-  master: Pick<Master, "slug" | "id">,
-  botUsername?: string,
-): string {
-  const bot = botUsername ?? getBotUsername();
-  const param = getMasterStartParam(master);
-  return `https://t.me/${bot}?start=${encodeURIComponent(param)}`;
 }
 
 export function getWebAppBaseUrl(): string {

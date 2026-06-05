@@ -58,9 +58,40 @@ async function sendClientWelcome(
   }
 }
 
+async function sendMasterPanel(ctx: BotContext, master: Master): Promise<void> {
+  const onboarded = await hasAiSettings(master.id);
+  if (!onboarded || needsOnboarding(master)) {
+    await ctx.reply(
+      "🚀 Вітаємо в ZapysUa!\n\nНатисніть кнопку, щоб завершити реєстрацію та створити вашого AI-адміністратора.",
+      { reply_markup: webAppInlineKeyboard("Розпочати") },
+    );
+    return;
+  }
+
+  await ctx.reply(
+    `Раді вас бачити, ${master.business_name}! 👋\n\nВідкрийте ваш кабінет, щоб керувати записами.`,
+    { reply_markup: webAppInlineKeyboard("Відкрити кабінет") },
+  );
+}
+
+async function sendGuestHelp(ctx: BotContext): Promise<void> {
+  const keyboard = new InlineKeyboard()
+    .url("💼 Зареєструватися як майстер", getWebAppBaseUrl())
+    .row()
+    .text("❓ Як записатися?", "client_help");
+
+  await ctx.reply(
+    "👋 Ласкаво просимо до ZapysUa!\n\n" +
+      "Щоб записатися до майстра, перейдіть за посиланням, яке він вам надав " +
+      "(формат: t.me/…/app?startapp=slug).\n\n" +
+      "Якщо у вас є slug майстра, надішліть команду:\n" +
+      "/start slug_майстра",
+    { reply_markup: keyboard },
+  );
+}
+
 export const bot = new Bot<BotContext>(getBotToken());
 
-// Middleware: только устанавливаем контекст, НЕ создаём мастера
 const masterMiddleware: MiddlewareFn<BotContext> = async (ctx, next) => {
   const from = ctx.from;
   if (!from) {
@@ -82,7 +113,6 @@ bot.use(masterMiddleware);
 bot.command("start", async (ctx) => {
   const startParam = ctx.match?.trim() ?? "";
 
-  // ========== 1. ЕСЛИ ЕСТЬ ПАРАМЕТР (КЛИЕНТ) ==========
   if (startParam) {
     try {
       const referredMaster = await findMasterByStartParam(startParam);
@@ -98,45 +128,21 @@ bot.command("start", async (ctx) => {
     return;
   }
 
-  // ========== 2. ПАРАМЕТРА НЕТ – ОПРЕДЕЛЯЕМ РОЛЬ ==========
   const master = ctx.master;
-
-  // Если пользователь зарегистрирован как мастер – показываем панель мастера
   if (master) {
-    const onboarded = await hasAiSettings(master.id);
-    if (!onboarded || needsOnboarding(master)) {
-      await ctx.reply(
-        "🚀 Вітаємо в ZapysUa!\n\nНатисніть кнопку, щоб завершити реєстрацію та створити вашого AI-адміністратора.",
-        { reply_markup: webAppInlineKeyboard("Розпочати") },
-      );
-      return;
-    }
-    await ctx.reply(
-      `Раді вас бачити, ${master.business_name}! 👋\n\nВідкрийте ваш кабінет, щоб керувати записами.`,
-      { reply_markup: webAppInlineKeyboard("Відкрити кабінет") },
-    );
+    await sendMasterPanel(ctx, master);
     return;
   }
 
-  // ========== 3. НЕ МАСТЕР, НЕТ ПАРАМЕТРА – ПРЕДЛАГАЕМ ВЫБОР ==========
-  // Показываем две кнопки: "Я мастер" и "Я клиент"
-  const keyboard = new InlineKeyboard()
-    .url("💼 Я мастер", getWebAppBaseUrl())
-    .row()
-    .text("📅 Я клиент", "client_help");
-
-  await ctx.reply(
-    "👋 Ласкаво просимо до ZapysUa!\n\n" +
-    "Виберіть вашу роль:",
-    { reply_markup: keyboard }
-  );
+  await sendGuestHelp(ctx);
 });
 
-// Обработчик нажатия на кнопку "Я клиент"
 bot.callbackQuery("client_help", async (ctx) => {
   await ctx.answerCallbackQuery();
   await ctx.reply(
-    "Щоб записатися до майстра, скористайтеся посиланням, яке він вам надав.\n\n" +
-    "Якщо у вас немає посилання, зверніться до майстра безпосередньо."
+    "📅 Як записатися:\n\n" +
+      "1. Отримайте посилання від майстра (t.me/…/app?startapp=slug).\n" +
+      "2. Перейдіть за ним — відкриється сторінка запису.\n\n" +
+      "Або надішліть у чат: /start slug_майстра, потім натисніть «Записатися».",
   );
 });

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
-import { getClientBotStartLink, getMasterStartParam } from "@/lib/referral";
+import { getClientDeepLink } from "@/lib/referral";
 import {
   isValidSlug,
   normalizeSlug,
@@ -77,8 +77,7 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
     setSocialTelegram(social.telegram);
   }, [master]);
 
-  const clientLink = getClientBotStartLink(master);
-  const startCommand = getMasterStartParam(master);
+  const clientLink = getClientDeepLink(master);
 
   const saveTone = async (newTone: AiTone) => {
     setTone(newTone);
@@ -346,16 +345,12 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
         <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           Посилання для клієнтів
         </p>
-        <p className="break-all text-xs text-zinc-500">{clientLink}</p>
         <p className="text-xs text-zinc-500">
-          Якщо посилання не відкриває запис, надішліть команду{" "}
-          <span className="font-mono text-zinc-600 dark:text-zinc-400">
-            /start {startCommand}
-          </span>{" "}
-          у чат з ботом, потім натисніть «Записатися».
+          Клієнт переходить за посиланням і одразу потрапляє на сторінку запису
         </p>
+        <p className="break-all text-xs text-zinc-500">{clientLink}</p>
         <Button variant="outline" className="w-full" onClick={copyLink}>
-          {copied ? "Скопійовано" : "Скопіювати посилання"}
+          {copied ? "Скопійовано" : "Копіювати"}
         </Button>
       </Card>
 
