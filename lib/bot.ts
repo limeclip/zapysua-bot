@@ -1,238 +1,154 @@
 import { Bot, InlineKeyboard, type MiddlewareFn } from "grammy";
-
 import { findMasterByStartParam } from "@/lib/api/masters";
-
+import { getClientAppUrl, getWebAppBaseUrl } from "@/lib/referral";
 import {
   getMasterByTelegramId,
   setTelegramContext,
   needsOnboarding,
   hasAiSettings,
 } from "@/lib/supabaseClient";
-
 import type { BotContext, Master } from "@/types";
 
 function getBotToken(): string {
   const token = process.env.BOT_TOKEN;
-
   if (!token) {
     throw new Error("BOT_TOKEN не встановлено");
   }
-
   return token;
 }
 
-function getBotUsername(): string {
-  return process.env.NEXT_PUBLIC_BOT_USERNAME || "ZapysUaBot";
+function webAppInlineKeyboard(buttonText: string, url?: string) {
+  return new InlineKeyboard().webApp(
+    buttonText,
+    url ?? getWebAppBaseUrl(),
+  );
 }
-
-function getMiniAppUrl(slug?: string): string {
-  const botUsername = getBotUsername();
-
-  if (!slug) {
-    return `https://t.me/${botUsername}/app`;
-  }
-
-  return `https://t.me/${botUsername}/app?startapp=${encodeURIComponent(slug)}`;
-}
-
-export const bot = new Bot<BotContext>(getBotToken());
 
 async function sendClientWelcome(
   ctx: BotContext,
-  master: Master
+  master: Master,
 ): Promise<void> {
-
-  const miniAppUrl = getMiniAppUrl(master.slug ?? undefined);
-
-  console.log("MINI APP URL:", miniAppUrl);
-
-  const keyboard = new InlineKeyboard().url(
+  const clientUrl = getClientAppUrl(master);
+  const keyboard = new InlineKeyboard().webApp(
     "📅 Записатися на прийом",
-    miniAppUrl
+    clientUrl,
   );
 
-  const text =
-    `👋 Привіт!\n\n` +
-    `Ви відкрили запис до ${master.business_name}\n\n` +
-    `Натисніть кнопку нижче для запису.`;
+  const caption =
+    `👋 Привіт!\n` +
+    `Це AI-адміністратор *${master.business_name}*\n\n` +
+    `Оберіть послугу та запишіться на зручний час.`;
 
-  await ctx.reply(text, {
-    reply_markup: keyboard,
-  });
+  const plainText =
+    `👋 Привіт!\n` +
+    `Це AI-адміністратор ${master.business_name}\n\n` +
+    `Натисніть кнопку нижче, щоб записатися:`;
+
+  if (master.logo_url) {
+    await ctx.replyWithPhoto(master.logo_url, {
+      caption,
+      parse_mode: "Markdown",
+      reply_markup: keyboard,
+    });
+    return;
+  }
+
+  await ctx.reply(plainText, { reply_markup: keyboard });
 }
 
 async function sendMasterPanel(
   ctx: BotContext,
-  master: Master
+  master: Master,
 ): Promise<void> {
-
   const onboarded = await hasAiSettings(master.id);
 
   if (!onboarded || needsOnboarding(master)) {
-
     await ctx.reply(
-      "🚀 Завершіть налаштування вашого кабінету",
-      {
-        reply_markup: new InlineKeyboard().url(
-          "Відкрити кабінет",
-          getMiniAppUrl()
-        ),
-      }
+      "🚀 Вітаємо в ZapysUa!\n\nНатисніть кнопку, щоб завершити реєстрацію та створити вашого AI-адміністратора.",
+      { reply_markup: webAppInlineKeyboard("Розпочати") },
     );
-
     return;
   }
 
   await ctx.reply(
-    `👋 Вітаємо, ${master.business_name}`,
-    {
-      reply_markup: new InlineKeyboard().url(
-        "Відкрити кабінет",
-        getMiniAppUrl()
-      ),
-    }
+    `Раді вас бачити, ${master.business_name}! 👋\n\nВідкрийте ваш кабінет, щоб керувати записами.`,
+    { reply_markup: webAppInlineKeyboard("Відкрити кабінет") },
   );
 }
 
 async function sendGuestHelp(ctx: BotContext): Promise<void> {
-
   await ctx.reply(
-    "👋 Ласкаво просимо до ZapysUa",
+    "👋 Ласкаво просимо до ZapysUa!\n\n" +
+      "Щоб записатися до майстра, перейдіть за посиланням, яке він вам надав.\n\n" +
+      "Майстер? Натисніть кнопку нижче:",
     {
       reply_markup: new InlineKeyboard().url(
-        "Відкрити Mini App",
-        getMiniAppUrl()
+        "💼 Зареєструватися як майстер",
+        getWebAppBaseUrl(),
       ),
-    }
+    },
   );
 }
 
-bot.command("start", async (ctx) => {
+export const bot = new Bot<BotContext>(getBotToken());
 
+bot.command("start", async (ctx) => {
   const payload =
     String(ctx.match ?? "").trim() ||
-    ctx.message?.text?.split(" ").slice(1).join(" ").trim();
+    ctx.message?.text?.split(" ").slice(1).join(" ").trim() ||
+    "";
 
-  console.log("START PAYLOAD:", payload);
-
-  /**
-   * CLIENT FLOW
-   */
   if (payload) {
-
     try {
-
-      const referredMaster =
-        await findMasterByStartParam(payload);
-
-      console.log(
-        "REFERRED MASTER:",
-        referredMaster?.slug
-      );
+      const referredMaster = await findMasterByStartParam(payload);
 
       if (referredMaster) {
-
-        await sendClientWelcome(
-          ctx,
-          referredMaster
-        );
-
+        await sendClientWelcome(ctx, referredMaster);
         return;
       }
 
-      await ctx.reply(
-        `Майстра "${payload}" не знайдено`
-      );
-
+      await ctx.reply(`Майстра «${payload}» не знайдено.`);
       return;
-
     } catch (error) {
-
-      console.error(
-        "CLIENT FLOW ERROR:",
-        error
-      );
-
-      await ctx.reply(
-        "⚠️ Помилка"
-      );
-
+      console.error("[bot /start] client flow:", error);
+      await ctx.reply("⚠️ Щось пішло не так. Спробуйте пізніше.");
       return;
     }
   }
 
-  /**
-   * MASTER FLOW
-   */
   const fromId = ctx.from?.id;
-
-  let master: Master | null | undefined =
-    ctx.master;
+  let master: Master | null | undefined = ctx.master;
 
   if (!master && fromId) {
-
     try {
-
       await setTelegramContext(fromId);
-
-      master =
-        await getMasterByTelegramId(fromId);
-
+      master = await getMasterByTelegramId(fromId);
     } catch (error) {
-
-      console.error(
-        "MASTER LOOKUP ERROR:",
-        error
-      );
+      console.error("[bot /start] master lookup:", error);
     }
   }
 
   if (master) {
-
-    await sendMasterPanel(
-      ctx,
-      master
-    );
-
+    await sendMasterPanel(ctx, master);
     return;
   }
 
-  /**
-   * GUEST
-   */
   await sendGuestHelp(ctx);
 });
 
-/**
- * MIDDLEWARE
- */
-const masterMiddleware: MiddlewareFn<BotContext> =
-  async (ctx, next) => {
+const masterMiddleware: MiddlewareFn<BotContext> = async (ctx, next) => {
+  const from = ctx.from;
+  if (!from) return next();
 
-    const from = ctx.from;
+  try {
+    await setTelegramContext(from.id);
+    const master = await getMasterByTelegramId(from.id);
+    ctx.master = master ?? undefined;
+  } catch (error) {
+    console.error("[bot] masterMiddleware:", error);
+  }
 
-    if (!from) {
-      return next();
-    }
-
-    try {
-
-      await setTelegramContext(from.id);
-
-      const master =
-        await getMasterByTelegramId(from.id);
-
-      ctx.master = master ?? undefined;
-
-    } catch (error) {
-
-      console.error(
-        "MIDDLEWARE ERROR:",
-        error
-      );
-    }
-
-    await next();
-  };
+  await next();
+};
 
 bot.use(masterMiddleware);

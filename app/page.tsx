@@ -28,25 +28,17 @@ function HomeContent() {
         console.log("INIT DATA:", tg?.initData);
         console.log("INIT DATA UNSAFE:", tg?.initDataUnsafe);
 
-        let startParam: string | null = null;
+        const urlStartParam =
+          searchParams.get("startapp")?.trim() ||
+          searchParams.get("tgWebAppStartParam")?.trim() ||
+          null;
+        const tgStartParam =
+          tg?.initDataUnsafe?.start_param?.trim() || null;
+        const startParam = urlStartParam || tgStartParam;
 
-        /**
-         * TELEGRAM START PARAM
-         */
-        if (tg?.initDataUnsafe?.start_param) {
-          startParam = tg.initDataUnsafe.start_param;
-        }
-
-        /**
-         * URL FALLBACK
-         */
-        if (!startParam) {
-          startParam =
-            searchParams.get("tgWebAppStartParam") ||
-            searchParams.get("startapp");
-        }
-
-        console.log("FINAL START PARAM:", startParam);
+        console.log("[MiniApp] startapp from URL:", urlStartParam);
+        console.log("[MiniApp] start_param from Telegram:", tgStartParam);
+        console.log("[MiniApp] final start param:", startParam);
 
         /**
          * TELEGRAM SOMETIMES NEEDS DELAY
