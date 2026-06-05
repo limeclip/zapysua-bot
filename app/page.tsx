@@ -16,7 +16,7 @@ function HomeContent() {
 
     async function init() {
       try {
-        // Telegram Mini App init
+        // INIT TELEGRAM
         if (tg) {
           tg.ready();
           tg.expand();
@@ -31,14 +31,14 @@ function HomeContent() {
         let startParam: string | null = null;
 
         /**
-         * 1. Основной способ Telegram
+         * TELEGRAM START PARAM
          */
         if (tg?.initDataUnsafe?.start_param) {
           startParam = tg.initDataUnsafe.start_param;
         }
 
         /**
-         * 2. Fallback через URL params
+         * URL FALLBACK
          */
         if (!startParam) {
           startParam =
@@ -49,12 +49,12 @@ function HomeContent() {
         console.log("FINAL START PARAM:", startParam);
 
         /**
-         * Telegram иногда поздно инициализирует WebApp
+         * TELEGRAM SOMETIMES NEEDS DELAY
          */
         await new Promise((resolve) => setTimeout(resolve, 500));
 
         /**
-         * Redirect
+         * REDIRECT
          */
         if (startParam) {
           console.log(
@@ -70,7 +70,7 @@ function HomeContent() {
           return;
         }
 
-        console.log("[MiniApp] start_param not found");
+        console.log("[MiniApp] start_param NOT FOUND");
 
       } catch (error) {
         console.error("[MiniApp] ERROR:", error);
@@ -82,7 +82,7 @@ function HomeContent() {
   }, [router, searchParams, startTransition]);
 
   /**
-   * Loader while redirecting
+   * LOADER
    */
   if (isRedirecting) {
     return (
@@ -101,7 +101,7 @@ function HomeContent() {
   }
 
   /**
-   * Default app
+   * DEFAULT PAGE
    */
   return <MiniAppShell />;
 }

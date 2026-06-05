@@ -23,7 +23,7 @@ export function getWebAppBaseUrl(): string {
 }
 
 /**
- * Путь страницы клиента
+ * CLIENT PAGE PATH
  */
 export function getClientAppPath(
   master: Pick<Master, "slug" | "id">
@@ -34,7 +34,7 @@ export function getClientAppPath(
 }
 
 /**
- * Прямой URL Mini App
+ * DIRECT MINI APP URL
  */
 export function getClientAppUrl(
   master: Pick<Master, "slug" | "id">
@@ -45,11 +45,9 @@ export function getClientAppUrl(
 /**
  * TELEGRAM MINI APP LINK
  *
- * ВАЖНО:
- * должен быть настроен short name "app" в BotFather
- *
- * Формат:
- * https://t.me/BOT/app?startapp=slug
+ * IMPORTANT:
+ * BotFather short name MUST BE:
+ * app
  */
 export function getClientStartAppLink(
   master: Pick<Master, "slug" | "id">
@@ -62,7 +60,7 @@ export function getClientStartAppLink(
 }
 
 /**
- * Старый fallback через /start
+ * OLD FALLBACK
  */
 export function getClientBotStartLink(
   master: Pick<Master, "slug" | "id">
