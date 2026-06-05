@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
-import { TelegramProvider } from "@/components/providers/TelegramProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ZapysUa — особистий кабінет",
-  description: "AI-адміністратор для запису клієнтів у Telegram",
+  title: "ZapysUa",
+  description: "Telegram Mini App",
 };
 
 export const viewport: Viewport = {
@@ -30,21 +29,28 @@ export const viewport: Viewport = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
+
   return (
     <html lang="uk" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-white text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100`}
-      >
+
+      <head>
         <Script
           src="https://telegram.org/js/telegram-web-app.js"
           strategy="beforeInteractive"
         />
+      </head>
+
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-black text-white`}
+      >
+
         <ThemeProvider>
-          <TelegramProvider>{children}</TelegramProvider>
+          {children}
         </ThemeProvider>
+
       </body>
     </html>
   );
