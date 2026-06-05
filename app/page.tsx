@@ -1,121 +1,119 @@
 "use client";
 
-import { Suspense, useEffect, useState, useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { MiniAppShell } from "@/components/MiniAppShell";
+import { useEffect, useState } from "react";
 
-function HomeContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [, startTransition] = useTransition();
+export default function HomePage() {
 
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [logs, setLogs] = useState<string[]>([]);
+
+  function addLog(message: string) {
+    console.log(message);
+
+    setLogs((prev) => [...prev, message]);
+  }
 
   useEffect(() => {
-    const tg = window.Telegram?.WebApp;
 
     async function init() {
+
       try {
-        // INIT TELEGRAM
+
+        const tg = window.Telegram?.WebApp;
+
+        addLog("MINI APP START");
+
         if (tg) {
           tg.ready();
           tg.expand();
+
+          addLog("Telegram WebApp READY");
+        } else {
+          addLog("Telegram WebApp NOT FOUND");
         }
 
-        console.log("========== TELEGRAM MINI APP ==========");
-        console.log("FULL URL:", window.location.href);
-        console.log("SEARCH:", window.location.search);
-        console.log("INIT DATA:", tg?.initData);
-        console.log("INIT DATA UNSAFE:", tg?.initDataUnsafe);
+        addLog(`URL: ${window.location.href}`);
 
         let startParam: string | null = null;
 
-        /**
-         * TELEGRAM START PARAM
-         */
+        // TELEGRAM PARAM
         if (tg?.initDataUnsafe?.start_param) {
-          startParam = tg.initDataUnsafe.start_param;
-        }
 
-        /**
-         * URL FALLBACK
-         */
-        if (!startParam) {
           startParam =
-            searchParams.get("tgWebAppStartParam") ||
-            searchParams.get("startapp");
+            tg.initDataUnsafe.start_param;
+
+          addLog(
+            `start_param from Telegram: ${startParam}`
+          );
         }
 
-        console.log("FINAL START PARAM:", startParam);
+        // URL FALLBACK
+        if (!startParam) {
 
-        /**
-         * TELEGRAM SOMETIMES NEEDS DELAY
-         */
-        await new Promise((resolve) => setTimeout(resolve, 500));
+          const params =
+            new URLSearchParams(
+              window.location.search
+            );
 
-        /**
-         * REDIRECT
-         */
-        if (startParam) {
-          console.log(
-            `[MiniApp] Redirecting to /client/${startParam}`
+          startParam =
+            params.get("tgWebAppStartParam") ||
+            params.get("startapp");
+
+          addLog(
+            `start_param from URL: ${startParam}`
           );
+        }
 
-          startTransition(() => {
-            setIsRedirecting(true);
+        // RESULT
+        addLog(
+          `FINAL START PARAM: ${startParam}`
+        );
 
-            router.replace(`/client/${startParam}`);
-          });
+        // NO PARAM
+        if (!startParam) {
+
+          addLog("PARAM NOT FOUND");
 
           return;
         }
 
-        console.log("[MiniApp] start_param NOT FOUND");
+        // TEST REDIRECT
+        addLog(
+          `REDIRECT TO: /client/${startParam}`
+        );
 
-      } catch (error) {
-        console.error("[MiniApp] ERROR:", error);
+        // НЕ редиректим пока
+        // window.location.href =
+        //   `/client/${startParam}`;
+
+      } catch (error: any) {
+
+        addLog(
+          `ERROR: ${error?.message}`
+        );
       }
     }
 
     init();
 
-  }, [router, searchParams, startTransition]);
+  }, []);
 
-  /**
-   * LOADER
-   */
-  if (isRedirecting) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-
-          <div className="mb-3 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-600 dark:border-t-zinc-300" />
-
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Завантаження...
-          </p>
-
-        </div>
-      </div>
-    );
-  }
-
-  /**
-   * DEFAULT PAGE
-   */
-  return <MiniAppShell />;
-}
-
-export default function Home() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center">
-          Завантаження...
-        </div>
-      }
+    <div
+      style={{
+        padding: 20,
+        fontSize: 16,
+        color: "white",
+        background: "black",
+        minHeight: "100vh",
+      }}
     >
-      <HomeContent />
-    </Suspense>
+      <h1>DEBUG MINI APP</h1>
+
+      {logs.map((log, index) => (
+        <div key={index}>
+          {log}
+        </div>
+      ))}
+    </div>
   );
 }
