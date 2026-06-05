@@ -1,8 +1,6 @@
 import type { Master } from "@/types";
 
-export function getMasterStartParam(
-  master: Pick<Master, "slug" | "id">,
-): string {
+export function getMasterStartParam(master: Pick<Master, "slug" | "id">): string {
   return master.slug ?? `ref_${master.id}`;
 }
 
@@ -10,14 +8,18 @@ export function getBotUsername(): string {
   return process.env.NEXT_PUBLIC_BOT_USERNAME ?? "ZapysUaBot";
 }
 
-/** Посилання для клієнта: відкриває чат з ботом, далі /start → кнопка web_app. */
-export function getClientBotStartLink(
-  master: Pick<Master, "slug" | "id">,
-  botUsername?: string,
-): string {
+/** Посилання для клієнта через параметр start (старого формату, менш надійний) */
+export function getClientBotStartLink(master: Pick<Master, "slug" | "id">, botUsername?: string): string {
   const bot = botUsername ?? getBotUsername();
   const param = getMasterStartParam(master);
   return `https://t.me/${bot}?start=${encodeURIComponent(param)}`;
+}
+
+/** Посилання для клієнта через параметр startapp (рекомендований, більш надійний) */
+export function getClientStartAppLink(master: Pick<Master, "slug" | "id">): string {
+  const bot = getBotUsername();
+  const param = getMasterStartParam(master);
+  return `https://t.me/${bot}?startapp=${encodeURIComponent(param)}`;
 }
 
 export function getWebAppBaseUrl(): string {
@@ -27,11 +29,10 @@ export function getWebAppBaseUrl(): string {
 }
 
 export function getClientAppPath(master: Pick<Master, "slug" | "id">): string {
-  return master.slug
-    ? `/client/${master.slug}`
-    : `/client/ref_${master.id}`;
+  return master.slug ? `/client/${master.slug}` : `/client/ref_${master.id}`;
 }
 
+/** Пряме посилання на Mini App (без параметрів) – використовується для кнопки web_app в боті */
 export function getClientAppUrl(master: Pick<Master, "slug" | "id">): string {
   return `${getWebAppBaseUrl()}${getClientAppPath(master)}`;
 }
