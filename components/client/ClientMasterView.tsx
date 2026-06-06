@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ClientMasterBookings } from "@/components/client/ClientMasterBookings";
+import { ClientServicesTab } from "@/components/client/ClientServicesTab";
 import {
   ClientMasterTabBar,
   type ClientMasterTabId,
@@ -15,7 +16,7 @@ import {
 import { getCategoryLabel } from "@/lib/master-category";
 import { cn } from "@/lib/utils";
 import type { PublicMasterProfile, SocialLinks } from "@/types";
-import { Calendar, Clock, MapPin, Phone, User } from "lucide-react";
+import { Calendar, MapPin, Phone, User } from "lucide-react";
 
 type ClientMasterViewProps = {
   profile: PublicMasterProfile;
@@ -206,48 +207,11 @@ export function ClientMasterView({ profile }: ClientMasterViewProps) {
             <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               Послуги
             </h2>
-            {profile.services.length === 0 ? (
-              <Card>
-                <p className="py-6 text-center text-sm text-zinc-500">
-                  Послуг поки немає
-                </p>
-              </Card>
-            ) : (
-              <ul className="space-y-3">
-                {profile.services.map((service) => (
-                  <Card
-                    key={service.id}
-                    className="flex items-center justify-between gap-3"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                        {service.name}
-                      </p>
-                      <p className="mt-1 flex items-center gap-3 text-sm text-zinc-500">
-                        <span>{service.price} грн</span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5" />
-                          {service.duration_minutes} хв
-                        </span>
-                      </p>
-                      {service.description && (
-                        <p className="mt-1 text-xs text-zinc-400">
-                          {service.description}
-                        </p>
-                      )}
-                    </div>
-                    <Link
-                      href={`${bookHref}?service=${encodeURIComponent(service.id)}`}
-                      className="shrink-0"
-                    >
-                      <Button size="sm" variant="outline">
-                        Обрати
-                      </Button>
-                    </Link>
-                  </Card>
-                ))}
-              </ul>
-            )}
+            <ClientServicesTab
+              services={profile.services}
+              layout={profile.services_layout ?? "list"}
+              bookHref={bookHref}
+            />
           </div>
         </div>
       )}

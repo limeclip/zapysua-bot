@@ -37,6 +37,7 @@ export function HomeTab({ master, onNavigateTab }: HomeTabProps) {
   const [weekStats, setWeekStats] = useState<BookingStatistics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   const load = useCallback(async () => {
     if (!isSubscriptionActive(master.subscription)) {
@@ -89,7 +90,7 @@ export function HomeTab({ master, onNavigateTab }: HomeTabProps) {
           Вітаємо, {master.business_name}
         </h2>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Сьогоднішні записи
+          Огляд вашого дня
         </p>
       </div>
 
@@ -120,6 +121,10 @@ export function HomeTab({ master, onNavigateTab }: HomeTabProps) {
               </Link>
             </div>
 
+            <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Сьогоднішні записи: {todayBookings.length}
+            </p>
+
             {todayBookings.length === 0 ? (
               <Card>
                 <p className="flex flex-col items-center gap-2 py-4 text-center text-sm text-zinc-500">
@@ -128,13 +133,26 @@ export function HomeTab({ master, onNavigateTab }: HomeTabProps) {
                 </p>
               </Card>
             ) : (
-              <BookingList
-                bookings={todayBookings}
-                timeZone={timeZone}
-                onBookingUpdated={handleBookingUpdated}
-                onBookingDeleted={handleBookingDeleted}
-                compact
-              />
+              <>
+                <BookingList
+                  bookings={
+                    showAll ? todayBookings : todayBookings.slice(0, 3)
+                  }
+                  timeZone={timeZone}
+                  onBookingUpdated={handleBookingUpdated}
+                  onBookingDeleted={handleBookingDeleted}
+                  compact
+                />
+                {todayBookings.length > 3 && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setShowAll((prev) => !prev)}
+                  >
+                    {showAll ? "Сховати" : "Показати всі записи"}
+                  </Button>
+                )}
+              </>
             )}
 
             {weekStats && (

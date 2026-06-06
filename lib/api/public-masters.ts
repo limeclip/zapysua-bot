@@ -32,7 +32,7 @@ export async function getPublicMasterProfile(
   let query = supabaseAdmin
     .from("masters")
     .select(
-      "id, business_name, logo_url, description, category, location, phone, social_links, timezone, working_hours",
+      "id, business_name, logo_url, description, category, location, phone, social_links, services_layout, timezone, working_hours",
     )
     .eq("is_active", true);
 
@@ -48,7 +48,7 @@ export async function getPublicMasterProfile(
 
   const { data: services, error: servicesError } = await supabaseAdmin
     .from("services")
-    .select("id, name, price, duration_minutes, description")
+    .select("id, name, price, duration_minutes, description, image_url")
     .eq("master_id", master.id)
     .eq("is_active", true)
     .order("created_at", { ascending: true });
@@ -64,13 +64,21 @@ export async function getPublicMasterProfile(
     location: master.location,
     phone: master.phone,
     social_links: (master.social_links as PublicMasterProfile["social_links"]) ?? null,
+    services_layout:
+      (master.services_layout as PublicMasterProfile["services_layout"]) ??
+      "list",
     timezone: master.timezone ?? "Europe/Kyiv",
     working_hours: parseWorkingHours(
       master.working_hours as Record<string, unknown> | null,
     ),
     services: (services ?? []) as Pick<
       Service,
-      "id" | "name" | "price" | "duration_minutes" | "description"
+      | "id"
+      | "name"
+      | "price"
+      | "duration_minutes"
+      | "description"
+      | "image_url"
     >[],
   };
 }

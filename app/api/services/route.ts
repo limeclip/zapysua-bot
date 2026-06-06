@@ -47,6 +47,11 @@ export async function POST(request: Request) {
       return badRequest("Невірна тривалість");
     }
 
+    const imageUrl =
+      body.image_url === undefined || body.image_url === null
+        ? null
+        : String(body.image_url).trim() || null;
+
     const { data, error } = await supabaseAdmin
       .from("services")
       .insert({
@@ -55,6 +60,7 @@ export async function POST(request: Request) {
         price,
         duration_minutes: duration,
         description: body.description?.trim() || null,
+        image_url: imageUrl,
       })
       .select("*")
       .single();
@@ -86,6 +92,10 @@ export async function PATCH(request: Request) {
     }
     if (body.description !== undefined) {
       updates.description = body.description?.trim() || null;
+    }
+    if (body.image_url !== undefined) {
+      updates.image_url =
+        body.image_url === null ? null : String(body.image_url).trim() || null;
     }
 
     const { data, error } = await supabaseAdmin

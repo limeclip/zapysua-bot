@@ -8,7 +8,7 @@ import {
 } from "@/lib/api/response";
 import { isValidSlug, normalizeSlug, slugValidationMessage } from "@/lib/slug";
 import { parseSocialLinksInput } from "@/lib/social-links";
-import type { MasterCategory, SocialLinks } from "@/types";
+import type { MasterCategory, ServicesLayout, SocialLinks } from "@/types";
 
 const VALID_CATEGORIES: MasterCategory[] = [
   "beauty",
@@ -104,6 +104,14 @@ export async function PATCH(request: Request) {
       const linksResult = parseSocialLinksBody(body.social_links);
       if ("error" in linksResult) return linksResult.error;
       updates.social_links = linksResult;
+    }
+
+    if (body.services_layout !== undefined) {
+      const layout = body.services_layout as ServicesLayout;
+      if (layout !== "list" && layout !== "grid") {
+        return badRequest("Невірний макет послуг");
+      }
+      updates.services_layout = layout;
     }
 
     if (Object.keys(updates).length === 0) {

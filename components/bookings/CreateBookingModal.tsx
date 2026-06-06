@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
+import { useDebounce } from "@/lib/hooks/useDebounce";
 import { formatPhoneInput, normalizeUaPhone } from "@/lib/phone";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -30,6 +31,22 @@ function toDatetimeLocalValue(isoOrDate: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function getSearchQuery(name: string, phone: string): string {
+  const phoneTrimmed = phone.trim();
+  const nameTrimmed = name.trim();
+  const phoneDigits = phoneTrimmed.replace(/\D/g, "");
+
+  if (phoneDigits.length >= 3) {
+    return phoneTrimmed;
+  }
+  return nameTrimmed;
+}
+
+function formatCustomerLabel(customer: CustomerWithStats): string {
+  const phone = customer.phone ? ` (${customer.phone})` : "";
+  return `${customer.name}${phone}`;
+}
+
 export function CreateBookingModal({
   master,
   open,
@@ -47,10 +64,14 @@ export function CreateBookingModal({
   const [customerSuggestions, setCustomerSuggestions] = useState<
     CustomerWithStats[]
   >([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [serviceId, setServiceId] = useState("");
   const [bookingStart, setBookingStart] = useState("");
   const [notes, setNotes] = useState("");
-  const nameAutoFilled = useRef(false);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  const searchQuery = getSearchQuery(clientName, clientPhone);
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   const loadServices = useCallback(async () => {
     setLoadingServices(true);
@@ -85,47 +106,64 @@ export function CreateBookingModal({
   useEffect(() => {
     if (!open) return;
 
-    const query = clientPhone.trim();
-    if (query.length < 3) {
+    if (debouncedSearch.length < 2) {
       setCustomerSuggestions([]);
       return;
     }
 
-    const timer = setTimeout(async () => {
+    let cancelled = false;
+
+    async function searchCustomers() {
       try {
         const data = await apiFetch<{ customers: CustomerWithStats[] }>(
-          `/api/customers?search=${encodeURIComponent(query)}&limit=10`,
+          `/api/customers?search=${encodeURIComponent(debouncedSearch)}&limit=10`,
         );
-        setCustomerSuggestions(data.customers);
+        if (!cancelled) {
+          setCustomerSuggestions(data.customers);
+        }
       } catch {
-        setCustomerSuggestions([]);
+        if (!cancelled) {
+          setCustomerSuggestions([]);
+        }
       }
-    }, 300);
+    }
 
-    return () => clearTimeout(timer);
-  }, [open, clientPhone]);
+    searchCustomers();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, debouncedSearch]);
 
   useEffect(() => {
-    const normalized = normalizeUaPhone(clientPhone);
-    if (!normalized) return;
+    if (!showSuggestions) return;
 
-    const match = customerSuggestions.find(
-      (c) => c.phone && normalizeUaPhone(c.phone) === normalized,
-    );
-    if (match) {
-      setClientName(match.name);
-      nameAutoFilled.current = true;
-    }
-  }, [clientPhone, customerSuggestions]);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showSuggestions]);
 
   const selectedService = services.find((s) => s.id === serviceId);
 
+  const handleSelectCustomer = (customer: CustomerWithStats) => {
+    setClientName(customer.name);
+    if (customer.phone) {
+      setClientPhone(formatPhoneInput(customer.phone));
+    }
+    setShowSuggestions(false);
+    setCustomerSuggestions([]);
+  };
+
   const handlePhoneChange = (value: string) => {
     setClientPhone(formatPhoneInput(value));
-    if (nameAutoFilled.current) {
-      setClientName("");
-      nameAutoFilled.current = false;
-    }
+    setShowSuggestions(true);
   };
 
   const handleSubmit = async () => {
@@ -177,8 +215,8 @@ export function CreateBookingModal({
       setClientName("");
       setClientPhone("");
       setCustomerSuggestions([]);
+      setShowSuggestions(false);
       setNotes("");
-      nameAutoFilled.current = false;
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Помилка створення");
@@ -188,6 +226,9 @@ export function CreateBookingModal({
   };
 
   if (!open) return null;
+
+  const hasSuggestions =
+    showSuggestions && customerSuggestions.length > 0 && debouncedSearch.length >= 2;
 
   return (
     <div
@@ -212,42 +253,51 @@ export function CreateBookingModal({
         </div>
 
         <div className="space-y-3">
-          <div className="space-y-1">
-            <label className="text-xs text-zinc-500">Ім&apos;я клієнта *</label>
-            <Input
-              placeholder="Олена"
-              value={clientName}
-              onChange={(e) => {
-                setClientName(e.target.value);
-                nameAutoFilled.current = false;
-              }}
-            />
-          </div>
+          <div className="relative space-y-3" ref={suggestionsRef}>
+            <div className="space-y-1">
+              <label className="text-xs text-zinc-500">Ім&apos;я клієнта *</label>
+              <Input
+                placeholder="Олена"
+                value={clientName}
+                onChange={(e) => {
+                  setClientName(e.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
+                autoComplete="off"
+              />
+            </div>
 
-          <div className="space-y-1">
-            <label className="text-xs text-zinc-500">
-              Телефон <span className="text-red-500">*</span>
-            </label>
-            <Input
-              type="tel"
-              placeholder="+380..."
-              value={clientPhone}
-              onChange={(e) => handlePhoneChange(e.target.value)}
-              list="customer-phone-suggestions"
-              required
-              autoComplete="tel"
-            />
-            <datalist id="customer-phone-suggestions">
-              {customerSuggestions.map((customer) =>
-                customer.phone ? (
-                  <option
-                    key={customer.id}
-                    value={customer.phone}
-                    label={customer.name}
-                  />
-                ) : null,
-              )}
-            </datalist>
+            <div className="space-y-1">
+              <label className="text-xs text-zinc-500">
+                Телефон <span className="text-red-500">*</span>
+              </label>
+              <Input
+                type="tel"
+                placeholder="+380..."
+                value={clientPhone}
+                onChange={(e) => handlePhoneChange(e.target.value)}
+                onFocus={() => setShowSuggestions(true)}
+                required
+                autoComplete="tel"
+              />
+            </div>
+
+            {hasSuggestions && (
+              <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-xl border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+                {customerSuggestions.map((customer) => (
+                  <li key={customer.id}>
+                    <button
+                      type="button"
+                      className="w-full px-3 py-2.5 text-left text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                      onClick={() => handleSelectCustomer(customer)}
+                    >
+                      {formatCustomerLabel(customer)}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div className="space-y-1">

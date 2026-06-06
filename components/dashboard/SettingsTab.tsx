@@ -21,7 +21,13 @@ import {
   parseSocialLinksInput,
   socialLinksToForm,
 } from "@/lib/social-links";
-import type { AiTone, MasterCategory, MasterWithMeta, WorkingHours } from "@/types";
+import type {
+  AiTone,
+  MasterCategory,
+  MasterWithMeta,
+  ServicesLayout,
+  WorkingHours,
+} from "@/types";
 import { Check, Eye, LoaderCircle } from "lucide-react";
 
 const TONE_OPTIONS: { value: AiTone; label: string }[] = [
@@ -61,6 +67,10 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
   const [checkingSlug, setCheckingSlug] = useState(false);
   const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [servicesLayout, setServicesLayout] = useState<ServicesLayout>(
+    master.services_layout ?? "list",
+  );
+  const [savingLayout, setSavingLayout] = useState(false);
 
   useEffect(() => {
     setBusinessName(master.business_name);
@@ -75,6 +85,7 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
     setSocialTiktok(social.tiktok);
     setSocialFacebook(social.facebook);
     setSocialTelegram(social.telegram);
+    setServicesLayout(master.services_layout ?? "list");
   }, [master]);
 
   const clientLink = getClientStartAppLink(master);
@@ -181,6 +192,24 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
       setMessage(err instanceof Error ? err.message : "Помилка");
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const saveServicesLayout = async (layout: ServicesLayout) => {
+    setServicesLayout(layout);
+    setSavingLayout(true);
+    try {
+      await apiFetch("/api/masters", {
+        method: "PATCH",
+        body: JSON.stringify({ services_layout: layout }),
+      });
+      setMessage("Макет послуг оновлено");
+      onMasterUpdate();
+    } catch (err) {
+      setServicesLayout(master.services_layout ?? "list");
+      setMessage(err instanceof Error ? err.message : "Помилка");
+    } finally {
+      setSavingLayout(false);
     }
   };
 
@@ -372,6 +401,50 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
               Відкриває сторінку майстра в новій вкладці (як її бачать клієнти)
             </p>
           </>
+        )}
+      </Card>
+
+      <Card className="space-y-3">
+        <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          Відображення послуг
+        </p>
+        <p className="text-xs text-zinc-500">
+          Як клієнти бачать ваші послуги на сторінці запису
+        </p>
+        <div
+          className="space-y-2"
+          role="radiogroup"
+          aria-label="Макет відображення послуг"
+        >
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-zinc-200 p-3 transition-colors has-[:checked]:border-zinc-400 has-[:checked]:bg-zinc-50 dark:border-zinc-700 dark:has-[:checked]:border-zinc-500 dark:has-[:checked]:bg-zinc-900/50">
+            <input
+              type="radio"
+              name="services_layout"
+              value="list"
+              checked={servicesLayout === "list"}
+              disabled={savingLayout}
+              onChange={() => saveServicesLayout("list")}
+              className="h-4 w-4"
+            />
+            <span className="text-sm">Список</span>
+          </label>
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-zinc-200 p-3 transition-colors has-[:checked]:border-zinc-400 has-[:checked]:bg-zinc-50 dark:border-zinc-700 dark:has-[:checked]:border-zinc-500 dark:has-[:checked]:bg-zinc-900/50">
+            <input
+              type="radio"
+              name="services_layout"
+              value="grid"
+              checked={servicesLayout === "grid"}
+              disabled={savingLayout}
+              onChange={() => saveServicesLayout("grid")}
+              className="h-4 w-4"
+            />
+            <span className="text-sm">Сітка (Instagram-стиль)</span>
+          </label>
+        </div>
+        {servicesLayout === "grid" && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            Для відображення в сітці рекомендуємо додати фото до кожної послуги
+          </p>
         )}
       </Card>
 

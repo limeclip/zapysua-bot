@@ -14,6 +14,8 @@ export type SocialLinks = {
   telegram?: string;
 };
 
+export type ServicesLayout = "list" | "grid";
+
 export type Master = {
   id: string;
   telegram_id: number;
@@ -26,6 +28,7 @@ export type Master = {
   location: string | null;
   phone?: string | null;
   social_links?: SocialLinks | null;
+  services_layout?: ServicesLayout;
   timezone: string;
   working_hours: Record<string, unknown>;
   is_active: boolean;
@@ -76,6 +79,7 @@ export type Service = {
   price: number;
   duration_minutes: number;
   description: string | null;
+  image_url?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -97,6 +101,7 @@ export type UpdateMasterInput = {
   description?: string | null;
   phone?: string | null;
   social_links?: SocialLinks;
+  services_layout?: ServicesLayout;
   username?: string | null;
 };
 
@@ -109,11 +114,12 @@ export type PublicMasterProfile = {
   location?: string | null;
   phone?: string | null;
   social_links?: SocialLinks | null;
+  services_layout?: ServicesLayout;
   timezone: string;
   working_hours: WorkingHours;
   services: Pick<
     Service,
-    "id" | "name" | "price" | "duration_minutes" | "description"
+    "id" | "name" | "price" | "duration_minutes" | "description" | "image_url"
   >[];
 };
 
@@ -212,6 +218,7 @@ export type CreateServiceInput = {
   price: number;
   duration_minutes: number;
   description?: string | null;
+  image_url?: string | null;
 };
 
 export type OnboardingPayload = {

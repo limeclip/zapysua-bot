@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { LogoUploader } from "@/components/shared/LogoUploader";
 import type { Service } from "@/types";
 import { Trash } from "lucide-react";
 
@@ -20,6 +21,7 @@ export function ServicesTab() {
   const [price, setPrice] = useState("");
   const [duration, setDuration] = useState("");
   const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -44,6 +46,7 @@ export function ServicesTab() {
     setPrice("");
     setDuration("");
     setDescription("");
+    setImageUrl(null);
     setEditingId(null);
     setShowForm(false);
   };
@@ -54,6 +57,7 @@ export function ServicesTab() {
     setPrice(String(service.price));
     setDuration(String(service.duration_minutes));
     setDescription(service.description ?? "");
+    setImageUrl(service.image_url ?? null);
     setShowForm(true);
   };
 
@@ -62,26 +66,23 @@ export function ServicesTab() {
 
     setSaving(true);
     try {
+      const payload = {
+        name: name.trim(),
+        price: parseInt(price, 10),
+        duration_minutes: parseInt(duration, 10),
+        description: description.trim() || null,
+        image_url: imageUrl,
+      };
+
       if (editingId) {
         await apiFetch("/api/services", {
           method: "PATCH",
-          body: JSON.stringify({
-            id: editingId,
-            name: name.trim(),
-            price: parseInt(price, 10),
-            duration_minutes: parseInt(duration, 10),
-            description: description.trim() || null,
-          }),
+          body: JSON.stringify({ id: editingId, ...payload }),
         });
       } else {
         await apiFetch("/api/services", {
           method: "POST",
-          body: JSON.stringify({
-            name: name.trim(),
-            price: parseInt(price, 10),
-            duration_minutes: parseInt(duration, 10),
-            description: description.trim() || null,
-          }),
+          body: JSON.stringify(payload),
         });
       }
       resetForm();
@@ -160,6 +161,29 @@ export function ServicesTab() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
+          <div className="space-y-1">
+            <label className="text-xs text-zinc-500">Зображення послуги</label>
+            <LogoUploader
+              previewUrl={imageUrl}
+              showSkip={false}
+              uploadEndpoint="/api/services/image"
+              responseField="image_url"
+              inputId="service-image-upload"
+              altText="Зображення послуги"
+              onUploaded={(url) => setImageUrl(url)}
+            />
+            {imageUrl && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-red-500"
+                onClick={() => setImageUrl(null)}
+              >
+                Видалити зображення
+              </Button>
+            )}
+          </div>
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -193,6 +217,14 @@ export function ServicesTab() {
           {services.map((service) => (
             <Card key={service.id} className="flex flex-col gap-3">
               <div className="flex items-start justify-between gap-2">
+                {service.image_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={service.image_url}
+                    alt=""
+                    className="h-14 w-14 shrink-0 rounded-lg object-cover"
+                  />
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-zinc-900 dark:text-zinc-100">
                     {service.name}
