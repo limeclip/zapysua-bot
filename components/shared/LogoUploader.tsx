@@ -9,6 +9,11 @@ type LogoUploaderProps = {
   onUploaded: (url: string) => void;
   onSkip?: () => void;
   showSkip?: boolean;
+  uploadEndpoint?: string;
+  responseField?: string;
+  inputId?: string;
+  altText?: string;
+  variant?: "logo" | "avatar";
 };
 
 export function LogoUploader({
@@ -16,7 +21,20 @@ export function LogoUploader({
   onUploaded,
   onSkip,
   showSkip = true,
+  uploadEndpoint = "/api/masters/logo",
+  responseField = "logo_url",
+  inputId = "logo-upload",
+  altText = "Зображення",
+  variant = "logo",
 }: LogoUploaderProps) {
+  const previewClassName =
+    variant === "avatar"
+      ? "mb-3 h-24 w-24 rounded-full object-cover shadow-sm ring-2 ring-zinc-100 dark:ring-zinc-800"
+      : "mb-3 h-24 w-24 rounded-2xl object-cover shadow-sm";
+  const placeholderClassName =
+    variant === "avatar"
+      ? "mb-3 flex h-24 w-24 items-center justify-center rounded-full bg-zinc-200 text-3xl dark:bg-zinc-800"
+      : "mb-3 flex h-24 w-24 items-center justify-center rounded-2xl bg-zinc-200 text-3xl dark:bg-zinc-800";
   const [preview, setPreview] = useState<string | null>(previewUrl ?? null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +55,7 @@ export function LogoUploader({
         const headers = getApiHeaders() as Record<string, string>;
         delete headers["Content-Type"];
 
-        const response = await fetch("/api/masters/logo", {
+        const response = await fetch(uploadEndpoint, {
           method: "POST",
           headers,
           body: formData,
@@ -49,7 +67,12 @@ export function LogoUploader({
           throw new Error(data.error ?? "Не вдалося завантажити");
         }
 
-        onUploaded(data.logo_url);
+        const url = data[responseField] as string | undefined;
+        if (!url) {
+          throw new Error("Не вдалося отримати URL зображення");
+        }
+
+        onUploaded(url);
       } catch (err) {
         console.error("[LogoUploader]", err);
         setError(
@@ -60,7 +83,7 @@ export function LogoUploader({
         setUploading(false);
       }
     },
-    [onUploaded, previewUrl],
+    [onUploaded, previewUrl, uploadEndpoint, responseField],
   );
 
   const handleFiles = (files: FileList | null) => {
@@ -90,19 +113,19 @@ export function LogoUploader({
           type="file"
           accept="image/jpeg,image/png,image/webp,image/gif"
           className="hidden"
-          id="logo-upload"
+          id={inputId}
           onChange={(e) => handleFiles(e.target.files)}
         />
-        <label htmlFor="logo-upload" className="flex w-full cursor-pointer flex-col items-center">
+        <label htmlFor={inputId} className="flex w-full cursor-pointer flex-col items-center">
           {preview ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={preview}
-              alt="Логотип"
-              className="mb-3 h-24 w-24 rounded-2xl object-cover shadow-sm"
+              alt={altText}
+              className={previewClassName}
             />
           ) : (
-            <div className="mb-3 flex h-24 w-24 items-center justify-center rounded-2xl bg-zinc-200 text-3xl dark:bg-zinc-800">
+            <div className={placeholderClassName}>
               📷
             </div>
           )}

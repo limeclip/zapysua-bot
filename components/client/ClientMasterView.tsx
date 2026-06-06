@@ -1,11 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ClientMasterBookings } from "@/components/client/ClientMasterBookings";
+import {
+  ClientMasterTabBar,
+  type ClientMasterTabId,
+} from "@/components/client/ClientMasterTabBar";
 import { getCategoryLabel } from "@/lib/master-category";
 import type { PublicMasterProfile, SocialLinks } from "@/types";
 import { Calendar, Clock, MapPin, Phone } from "lucide-react";
@@ -61,6 +67,7 @@ export function ClientMasterView({ profile }: ClientMasterViewProps) {
   const params = useParams();
   const slug = String(params.slug ?? "");
   const bookHref = `/client/${encodeURIComponent(slug)}/book`;
+  const [tab, setTab] = useState<ClientMasterTabId>("services");
 
   const socialEntries = SOCIAL_ITEMS.filter(
     (item) => profile.social_links?.[item.key],
@@ -104,99 +111,112 @@ export function ClientMasterView({ profile }: ClientMasterViewProps) {
         )}
       </div>
 
-      {profile.description && (
-        <p className="text-center text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-          {profile.description}
-        </p>
-      )}
+      <ClientMasterTabBar active={tab} onChange={setTab} />
 
-      {(profile.location || profile.phone) && (
-        <div className="space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
-          {profile.location && (
-            <p className="flex items-center justify-center gap-2">
-              <MapPin className="h-4 w-4 shrink-0 text-zinc-400" />
-              {profile.location}
+      {tab === "services" && (
+        <div className="space-y-6">
+          {profile.description && (
+            <p className="text-center text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+              {profile.description}
             </p>
           )}
-          {profile.phone && (
-            <p className="flex items-center justify-center gap-2">
-              <Phone className="h-4 w-4 shrink-0 text-zinc-400" />
-              <a
-                href={`tel:${profile.phone}`}
-                className="hover:text-zinc-900 dark:hover:text-zinc-100"
-              >
-                {profile.phone}
-              </a>
-            </p>
+
+          {(profile.location || profile.phone) && (
+            <div className="space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
+              {profile.location && (
+                <p className="flex items-center justify-center gap-2">
+                  <MapPin className="h-4 w-4 shrink-0 text-zinc-400" />
+                  {profile.location}
+                </p>
+              )}
+              {profile.phone && (
+                <p className="flex items-center justify-center gap-2">
+                  <Phone className="h-4 w-4 shrink-0 text-zinc-400" />
+                  <a
+                    href={`tel:${profile.phone}`}
+                    className="hover:text-zinc-900 dark:hover:text-zinc-100"
+                  >
+                    {profile.phone}
+                  </a>
+                </p>
+              )}
+            </div>
           )}
-        </div>
-      )}
 
-      {socialEntries.length > 0 && (
-        <div className="flex items-center justify-center gap-4">
-          {socialEntries.map(({ key, label }) => {
-            const href = profile.social_links?.[key];
-            if (!href) return null;
-            return (
-              <a
-                key={key}
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={label}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-700 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-              >
-                <SocialIcon network={key} className="h-5 w-5" />
-              </a>
-            );
-          })}
-        </div>
-      )}
+          {socialEntries.length > 0 && (
+            <div className="flex items-center justify-center gap-4">
+              {socialEntries.map(({ key, label }) => {
+                const href = profile.social_links?.[key];
+                if (!href) return null;
+                return (
+                  <a
+                    key={key}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={label}
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-700 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                  >
+                    <SocialIcon network={key} className="h-5 w-5" />
+                  </a>
+                );
+              })}
+            </div>
+          )}
 
-      <div className="space-y-3">
-        <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Послуги
-        </h2>
-        {profile.services.length === 0 ? (
-          <Card>
-            <p className="py-6 text-center text-sm text-zinc-500">
-              Послуг поки немає
-            </p>
-          </Card>
-        ) : (
-          <ul className="space-y-3">
-            {profile.services.map((service) => (
-              <Card key={service.id} className="flex items-center justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                    {service.name}
-                  </p>
-                  <p className="mt-1 flex items-center gap-3 text-sm text-zinc-500">
-                    <span>{service.price} грн</span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" />
-                      {service.duration_minutes} хв
-                    </span>
-                  </p>
-                  {service.description && (
-                    <p className="mt-1 text-xs text-zinc-400">
-                      {service.description}
-                    </p>
-                  )}
-                </div>
-                <Link
-                  href={`${bookHref}?service=${encodeURIComponent(service.id)}`}
-                  className="shrink-0"
-                >
-                  <Button size="sm" variant="outline">
-                    Обрати
-                  </Button>
-                </Link>
+          <div className="space-y-3">
+            <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Послуги
+            </h2>
+            {profile.services.length === 0 ? (
+              <Card>
+                <p className="py-6 text-center text-sm text-zinc-500">
+                  Послуг поки немає
+                </p>
               </Card>
-            ))}
-          </ul>
-        )}
-      </div>
+            ) : (
+              <ul className="space-y-3">
+                {profile.services.map((service) => (
+                  <Card
+                    key={service.id}
+                    className="flex items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                        {service.name}
+                      </p>
+                      <p className="mt-1 flex items-center gap-3 text-sm text-zinc-500">
+                        <span>{service.price} грн</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5" />
+                          {service.duration_minutes} хв
+                        </span>
+                      </p>
+                      {service.description && (
+                        <p className="mt-1 text-xs text-zinc-400">
+                          {service.description}
+                        </p>
+                      )}
+                    </div>
+                    <Link
+                      href={`${bookHref}?service=${encodeURIComponent(service.id)}`}
+                      className="shrink-0"
+                    >
+                      <Button size="sm" variant="outline">
+                        Обрати
+                      </Button>
+                    </Link>
+                  </Card>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab === "bookings" && (
+        <ClientMasterBookings masterId={profile.id} />
+      )}
     </div>
   );
 }
@@ -210,6 +230,7 @@ export function ClientMasterSkeleton() {
         <Skeleton className="mt-2 h-5 w-24 rounded-full" />
       </div>
       <Skeleton className="h-11 w-full" />
+      <Skeleton className="h-10 w-full" />
       <Skeleton className="h-24 w-full" />
       <Skeleton className="h-24 w-full" />
     </div>

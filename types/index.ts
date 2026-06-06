@@ -49,6 +49,26 @@ export type CustomerWithStats = Customer & {
   last_visit: string | null;
 };
 
+export type ClientProfile = {
+  telegram_id: number;
+  name: string;
+  phone: string | null;
+  avatar_url: string | null;
+  has_profile: boolean;
+};
+
+export type ClientBooking = {
+  id: string;
+  master_id: string;
+  business_name: string;
+  master_timezone: string;
+  service_name: string | null;
+  service_price: number | null;
+  booking_start: string;
+  duration_minutes: number;
+  status: BookingStatus;
+};
+
 export type Service = {
   id: string;
   master_id: string;
