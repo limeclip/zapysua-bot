@@ -22,7 +22,7 @@ import {
   socialLinksToForm,
 } from "@/lib/social-links";
 import type { AiTone, MasterCategory, MasterWithMeta, WorkingHours } from "@/types";
-import { Check, LoaderCircle } from "lucide-react";
+import { Check, Eye, LoaderCircle } from "lucide-react";
 
 const TONE_OPTIONS: { value: AiTone; label: string }[] = [
   { value: "friendly", label: "Дружній" },
@@ -353,6 +353,26 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
         <Button variant="outline" className="w-full" onClick={copyLink}>
           {copied ? "Скопійовано" : "Копіювати посилання"}
         </Button>
+        {master.slug && (
+          <>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() =>
+                window.open(
+                  `https://zapysua-bot.vercel.app/client/${master.slug}`,
+                  "_blank",
+                )
+              }
+            >
+              <Eye className="h-4 w-4" />
+              Переглянути сторінку
+            </Button>
+            <p className="text-xs text-zinc-500">
+              Відкриває сторінку майстра в новій вкладці (як її бачать клієнти)
+            </p>
+          </>
+        )}
       </Card>
 
       <Card className="space-y-3">

@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { Service } from "@/types";
+import { Trash } from "lucide-react";
 
 export function ServicesTab() {
   const [services, setServices] = useState<Service[]>([]);
@@ -93,7 +94,7 @@ export function ServicesTab() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Видалити цю послугу?")) return;
+    if (!confirm("Видалити послугу?")) return;
 
     try {
       await apiFetch(`/api/services?id=${id}`, { method: "DELETE" });
@@ -191,37 +192,37 @@ export function ServicesTab() {
         <ul className="space-y-3">
           {services.map((service) => (
             <Card key={service.id} className="flex flex-col gap-3">
-              <div>
-                <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                  {service.name}
-                </p>
-                <p className="text-sm text-zinc-500">
-                  {service.price} грн · {service.duration_minutes} хв
-                </p>
-                {service.description && (
-                  <p className="mt-1 text-xs text-zinc-400">
-                    {service.description}
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                    {service.name}
                   </p>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => openEdit(service)}
-                >
-                  Редагувати
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="flex-1"
+                  <p className="text-sm text-zinc-500">
+                    {service.price} грн · {service.duration_minutes} хв
+                  </p>
+                  {service.description && (
+                    <p className="mt-1 text-xs text-zinc-400">
+                      {service.description}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
                   onClick={() => handleDelete(service.id)}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-950/30"
+                  aria-label="Видалити послугу"
                 >
-                  Видалити
-                </Button>
+                  <Trash className="h-4 w-4" />
+                </button>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => openEdit(service)}
+              >
+                Редагувати
+              </Button>
             </Card>
           ))}
         </ul>

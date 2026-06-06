@@ -10,10 +10,12 @@ import {
   getWeekdayKeyInTimezone,
   parseWorkingHours,
 } from "@/lib/working-hours";
+import { normalizeUaPhone } from "@/lib/phone";
 import type {
   BookingSlot,
   CreateMasterInput,
   CreateServiceInput,
+  Customer,
   Master,
   MasterCategory,
   Service,
@@ -297,51 +299,64 @@ export async function deleteService(
   }
 }
 
-export async function getOrCreateCustomer(
+export async function getOrCreateCustomerByPhone(
   masterId: string,
-  tgId: number | null | undefined,
   name: string,
-  phone: string | null,
-): Promise<string> {
-  const normalizedPhone = phone?.replace(/\s+/g, "") || null;
-
-  if (tgId) {
-    const { data: byTelegram } = await supabase
-      .from("customers")
-      .select("id")
-      .eq("master_id", masterId)
-      .eq("telegram_id", tgId)
-      .maybeSingle();
-
-    if (byTelegram) {
-      await supabase
-        .from("customers")
-        .update({
-          name,
-          ...(normalizedPhone ? { phone: normalizedPhone } : {}),
-        })
-        .eq("id", byTelegram.id);
-      return byTelegram.id;
-    }
+  phone: string,
+  telegramId?: number | null,
+): Promise<Customer> {
+  const normalizedPhone = normalizeUaPhone(phone);
+  if (!normalizedPhone) {
+    throw new Error("Невірний номер телефону");
   }
 
-  if (normalizedPhone) {
-    const { data: byPhone } = await supabase
+  const { data: byPhone, error: phoneError } = await supabase
+    .from("customers")
+    .select("*")
+    .eq("master_id", masterId)
+    .eq("phone", normalizedPhone)
+    .maybeSingle();
+
+  if (phoneError) throw phoneError;
+
+  if (byPhone) {
+    const updates: { name?: string; telegram_id?: number } = {};
+    if (name && byPhone.name !== name) updates.name = name;
+    if (telegramId && !byPhone.telegram_id) updates.telegram_id = telegramId;
+
+    if (Object.keys(updates).length > 0) {
+      const { data: updated, error } = await supabase
+        .from("customers")
+        .update(updates)
+        .eq("id", byPhone.id)
+        .select("*")
+        .single();
+      if (error) throw error;
+      return updated as Customer;
+    }
+
+    return byPhone as Customer;
+  }
+
+  if (telegramId) {
+    const { data: byTelegram, error: tgError } = await supabase
       .from("customers")
-      .select("id")
+      .select("*")
       .eq("master_id", masterId)
-      .eq("phone", normalizedPhone)
+      .eq("telegram_id", telegramId)
       .maybeSingle();
 
-    if (byPhone) {
-      await supabase
+    if (tgError) throw tgError;
+
+    if (byTelegram) {
+      const { data: updated, error } = await supabase
         .from("customers")
-        .update({
-          name,
-          ...(tgId ? { telegram_id: tgId } : {}),
-        })
-        .eq("id", byPhone.id);
-      return byPhone.id;
+        .update({ name, phone: normalizedPhone })
+        .eq("id", byTelegram.id)
+        .select("*")
+        .single();
+      if (error) throw error;
+      return updated as Customer;
     }
   }
 
@@ -349,15 +364,34 @@ export async function getOrCreateCustomer(
     .from("customers")
     .insert({
       master_id: masterId,
-      telegram_id: tgId ?? null,
+      telegram_id: telegramId ?? null,
       name,
       phone: normalizedPhone,
     })
-    .select("id")
+    .select("*")
     .single();
 
   if (error) throw error;
-  return created.id;
+  return created as Customer;
+}
+
+export async function getOrCreateCustomer(
+  masterId: string,
+  tgId: number | null | undefined,
+  name: string,
+  phone: string | null,
+): Promise<string> {
+  if (!phone) {
+    throw new Error("Телефон обов'язковий");
+  }
+
+  const customer = await getOrCreateCustomerByPhone(
+    masterId,
+    name,
+    phone,
+    tgId,
+  );
+  return customer.id;
 }
 
 function slotOverlapsBooking(

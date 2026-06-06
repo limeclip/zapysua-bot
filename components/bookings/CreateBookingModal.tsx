@@ -1,13 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
+import { formatPhoneInput, normalizeUaPhone } from "@/lib/phone";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { BookingWithService, MasterWithMeta, Service } from "@/types";
+import type {
+  BookingWithService,
+  CustomerWithStats,
+  MasterWithMeta,
+  Service,
+} from "@/types";
 import { LoaderCircle, X } from "lucide-react";
 
 type CreateBookingModalProps = {
@@ -38,9 +44,13 @@ export function CreateBookingModal({
 
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
+  const [customerSuggestions, setCustomerSuggestions] = useState<
+    CustomerWithStats[]
+  >([]);
   const [serviceId, setServiceId] = useState("");
   const [bookingStart, setBookingStart] = useState("");
   const [notes, setNotes] = useState("");
+  const nameAutoFilled = useRef(false);
 
   const loadServices = useCallback(async () => {
     setLoadingServices(true);
@@ -72,7 +82,51 @@ export function CreateBookingModal({
     }
   }, [open, defaultDate, loadServices]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const query = clientPhone.trim();
+    if (query.length < 3) {
+      setCustomerSuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const data = await apiFetch<{ customers: CustomerWithStats[] }>(
+          `/api/customers?search=${encodeURIComponent(query)}&limit=10`,
+        );
+        setCustomerSuggestions(data.customers);
+      } catch {
+        setCustomerSuggestions([]);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [open, clientPhone]);
+
+  useEffect(() => {
+    const normalized = normalizeUaPhone(clientPhone);
+    if (!normalized) return;
+
+    const match = customerSuggestions.find(
+      (c) => c.phone && normalizeUaPhone(c.phone) === normalized,
+    );
+    if (match) {
+      setClientName(match.name);
+      nameAutoFilled.current = true;
+    }
+  }, [clientPhone, customerSuggestions]);
+
   const selectedService = services.find((s) => s.id === serviceId);
+
+  const handlePhoneChange = (value: string) => {
+    setClientPhone(formatPhoneInput(value));
+    if (nameAutoFilled.current) {
+      setClientName("");
+      nameAutoFilled.current = false;
+    }
+  };
 
   const handleSubmit = async () => {
     const trimmedName = clientName.trim();
@@ -86,6 +140,12 @@ export function CreateBookingModal({
     }
     if (!bookingStart) {
       setError("Оберіть дату та час");
+      return;
+    }
+
+    const normalizedPhone = normalizeUaPhone(clientPhone.trim());
+    if (!normalizedPhone) {
+      setError("Введіть коректний номер телефону");
       return;
     }
 
@@ -104,7 +164,7 @@ export function CreateBookingModal({
           method: "POST",
           body: JSON.stringify({
             client_name: trimmedName,
-            client_phone: clientPhone.trim() || null,
+            client_phone: normalizedPhone,
             service_id: serviceId,
             booking_start: startDate.toISOString(),
             duration_minutes: selectedService?.duration_minutes,
@@ -116,7 +176,9 @@ export function CreateBookingModal({
       onCreated(data.booking);
       setClientName("");
       setClientPhone("");
+      setCustomerSuggestions([]);
       setNotes("");
+      nameAutoFilled.current = false;
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Помилка створення");
@@ -155,18 +217,37 @@ export function CreateBookingModal({
             <Input
               placeholder="Олена"
               value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
+              onChange={(e) => {
+                setClientName(e.target.value);
+                nameAutoFilled.current = false;
+              }}
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs text-zinc-500">Телефон</label>
+            <label className="text-xs text-zinc-500">
+              Телефон <span className="text-red-500">*</span>
+            </label>
             <Input
               type="tel"
               placeholder="+380..."
               value={clientPhone}
-              onChange={(e) => setClientPhone(e.target.value)}
+              onChange={(e) => handlePhoneChange(e.target.value)}
+              list="customer-phone-suggestions"
+              required
+              autoComplete="tel"
             />
+            <datalist id="customer-phone-suggestions">
+              {customerSuggestions.map((customer) =>
+                customer.phone ? (
+                  <option
+                    key={customer.id}
+                    value={customer.phone}
+                    label={customer.name}
+                  />
+                ) : null,
+              )}
+            </datalist>
           </div>
 
           <div className="space-y-1">

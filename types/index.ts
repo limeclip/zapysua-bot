@@ -169,6 +169,7 @@ export type BookingStatus =
 export type Booking = {
   id: string;
   master_id: string;
+  customer_id?: string | null;
   client_telegram_id: number | null;
   client_name: string;
   client_phone: string | null;

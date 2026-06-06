@@ -20,6 +20,7 @@ import {
   getCalendarGrid,
   parseDateKey,
 } from "@/lib/dates";
+import { formatPhoneInput, normalizeUaPhone } from "@/lib/phone";
 import { isWorkingDay } from "@/lib/working-hours";
 import { cn } from "@/lib/utils";
 import type { BookingSlot, PublicMasterProfile } from "@/types";
@@ -182,6 +183,13 @@ export function ClientBookContent({ slug }: ClientBookContentProps) {
       setError("Введіть ім'я");
       return;
     }
+
+    const normalizedPhone = normalizeUaPhone(clientPhone.trim());
+    if (!normalizedPhone) {
+      setError("Введіть коректний номер телефону");
+      return;
+    }
+
     if (!profile || !serviceId || !selectedSlot) {
       setError("Оберіть послугу, дату та час");
       return;
@@ -199,7 +207,7 @@ export function ClientBookContent({ slug }: ClientBookContentProps) {
           service_id: serviceId,
           booking_start: selectedSlot.start,
           client_name: trimmedName,
-          client_phone: clientPhone.trim() || null,
+          client_phone: normalizedPhone,
           telegram_id: telegramId,
         }),
       });
@@ -447,15 +455,16 @@ export function ClientBookContent({ slug }: ClientBookContentProps) {
                 htmlFor="client-phone"
                 className="mb-1.5 block text-xs text-zinc-500"
               >
-                Телефон (необов&apos;язково)
+                Телефон <span className="text-red-500">*</span>
               </label>
               <Input
                 id="client-phone"
                 type="tel"
                 value={clientPhone}
-                onChange={(e) => setClientPhone(e.target.value)}
+                onChange={(e) => setClientPhone(formatPhoneInput(e.target.value))}
                 placeholder="+380..."
                 autoComplete="tel"
+                required
               />
             </div>
           </Card>

@@ -1,17 +1,15 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import {
-  findOverlappingBooking,
-  upsertCustomerByPhone,
-} from "@/lib/bookings-server";
+import { findOverlappingBooking } from "@/lib/bookings-server";
 import {
   badRequest,
   requireMasterWithSubscription,
   serverError,
 } from "@/lib/api/response";
+import { normalizeUaPhone } from "@/lib/phone";
 import { getTelegramUserFromRequest } from "@/lib/telegram/auth";
 import { sendBookingCreated } from "@/lib/notifications";
-import { getOrCreateCustomer } from "@/lib/supabaseClient";
+import { getOrCreateCustomerByPhone } from "@/lib/supabaseClient";
 import type { BookingStatus, BookingWithService } from "@/types";
 
 const VALID_STATUSES: BookingStatus[] = [
@@ -67,8 +65,9 @@ export async function GET(request: Request) {
 
 async function createBooking(params: {
   masterId: string;
+  customerId: string | null;
   clientName: string;
-  clientPhone: string | null;
+  clientPhone: string;
   serviceId: string;
   bookingStart: Date;
   durationMinutes: number;
@@ -80,6 +79,7 @@ async function createBooking(params: {
     .from("bookings")
     .insert({
       master_id: params.masterId,
+      customer_id: params.customerId,
       client_telegram_id: params.clientTelegramId ?? null,
       client_name: params.clientName,
       client_phone: params.clientPhone,
@@ -100,10 +100,10 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const clientName = String(body.client_name ?? "").trim();
-    const clientPhone =
+    const clientPhoneRaw =
       body.client_phone === undefined || body.client_phone === null
-        ? null
-        : String(body.client_phone).trim() || null;
+        ? ""
+        : String(body.client_phone).trim();
     const serviceId = body.service_id as string | undefined;
     const bookingStartRaw = body.booking_start as string | undefined;
     const notes =
@@ -113,6 +113,11 @@ export async function POST(request: Request) {
 
     if (!clientName || clientName.length < 1) {
       return badRequest("Ім'я клієнта обов'язкове");
+    }
+
+    const clientPhone = normalizeUaPhone(clientPhoneRaw);
+    if (!clientPhone) {
+      return badRequest("Введіть коректний номер телефону");
     }
     if (!serviceId) {
       return badRequest("Оберіть послугу");
@@ -189,13 +194,7 @@ export async function POST(request: Request) {
 
     let clientTelegramId: number | null = null;
 
-    if (isMasterBooking) {
-      await upsertCustomerByPhone({
-        masterId,
-        name: clientName,
-        phone: clientPhone,
-      });
-    } else {
+    if (!isMasterBooking) {
       const telegramAuth = getTelegramUserFromRequest(request);
       const bodyTelegramId = body.telegram_id;
       clientTelegramId =
@@ -210,17 +209,18 @@ export async function POST(request: Request) {
       ) {
         return badRequest("Невірний telegram_id");
       }
-
-      await getOrCreateCustomer(
-        masterId,
-        clientTelegramId,
-        clientName,
-        clientPhone,
-      );
     }
+
+    const customer = await getOrCreateCustomerByPhone(
+      masterId,
+      clientName,
+      clientPhone,
+      clientTelegramId,
+    );
 
     const data = await createBooking({
       masterId,
+      customerId: customer.id,
       clientName,
       clientPhone,
       serviceId,
