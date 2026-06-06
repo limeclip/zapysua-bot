@@ -1,9 +1,13 @@
 import { bot } from "@/lib/bot";
 import { formatDateKey, formatDateLong, formatTime } from "@/lib/dates";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import type { BookingWithService, Customer } from "@/types";
+import type { BookingWithService, Customer, Master } from "@/types";
 
-type NotificationType = "confirmation" | "reminder_24h" | "reminder_2h" | "return_client";
+type NotificationType =
+  | "confirmation"
+  | "reminder_24h"
+  | "reminder_2h"
+  | "return_client";
 
 async function logNotification(
   bookingId: string,
@@ -32,6 +36,15 @@ function formatBookingDetails(
   return { serviceName, dateTime };
 }
 
+function resolveTelegramId(
+  booking: BookingWithService,
+  customer?: Pick<Customer, "telegram_id"> | { telegram_id?: number | null },
+): number | null {
+  return (
+    customer?.telegram_id ?? booking.client_telegram_id ?? null
+  );
+}
+
 export async function sendTelegramMessage(
   telegramId: number,
   text: string,
@@ -45,17 +58,31 @@ export async function sendTelegramMessage(
   }
 }
 
+export async function sendBookingCreated(
+  booking: BookingWithService,
+  customer: Pick<Customer, "telegram_id" | "name"> | { telegram_id?: number | null },
+  master: Pick<Master, "business_name" | "timezone">,
+): Promise<void> {
+  const telegramId = resolveTelegramId(booking, customer);
+  if (!telegramId) return;
+
+  const timeZone = master.timezone ?? "Europe/Kyiv";
+  const { serviceName, dateTime } = formatBookingDetails(booking, timeZone);
+
+  const text =
+    `📝 Ви створили запис на ${serviceName} ${dateTime}. ` +
+    `Очікуйте підтвердження від майстра.`;
+
+  await sendTelegramMessage(telegramId, text);
+}
+
 export async function sendBookingConfirmation(
   booking: BookingWithService,
   customer: Pick<Customer, "telegram_id" | "name"> | { telegram_id?: number | null },
   options?: { timeZone?: string },
 ): Promise<void> {
-  const telegramId =
-    customer.telegram_id ?? booking.client_telegram_id ?? null;
-
-  if (!telegramId) {
-    return;
-  }
+  const telegramId = resolveTelegramId(booking, customer);
+  if (!telegramId) return;
 
   const timeZone = options?.timeZone ?? "Europe/Kyiv";
   const { serviceName, dateTime } = formatBookingDetails(booking, timeZone);
@@ -67,6 +94,42 @@ export async function sendBookingConfirmation(
 
   const sent = await sendTelegramMessage(telegramId, text);
   await logNotification(booking.id, "confirmation", sent ? "sent" : "failed");
+}
+
+export async function sendBookingCancelled(
+  booking: BookingWithService,
+  options?: { timeZone?: string; telegramId?: number | null },
+): Promise<void> {
+  const telegramId =
+    options?.telegramId ?? booking.client_telegram_id ?? null;
+  if (!telegramId) return;
+
+  const timeZone = options?.timeZone ?? "Europe/Kyiv";
+  const { serviceName, dateTime } = formatBookingDetails(booking, timeZone);
+
+  const text =
+    `❌ Ваш запис скасовано.\n\n` +
+    `Деталі: ${serviceName}, ${dateTime}.`;
+
+  await sendTelegramMessage(telegramId, text);
+}
+
+export async function sendBookingNoShow(
+  booking: BookingWithService,
+  options?: { timeZone?: string; telegramId?: number | null },
+): Promise<void> {
+  const telegramId =
+    options?.telegramId ?? booking.client_telegram_id ?? null;
+  if (!telegramId) return;
+
+  const timeZone = options?.timeZone ?? "Europe/Kyiv";
+  const { serviceName, dateTime } = formatBookingDetails(booking, timeZone);
+
+  const text =
+    `⚠️ Вас не було на записі.\n\n` +
+    `Деталі: ${serviceName}, ${dateTime}.`;
+
+  await sendTelegramMessage(telegramId, text);
 }
 
 export async function sendBookingReminder(

@@ -297,8 +297,6 @@ export async function deleteService(
   }
 }
 
-const SLOT_STEP_MINUTES = 15;
-
 export async function getOrCreateCustomer(
   masterId: string,
   tgId: number | null | undefined,
@@ -375,15 +373,36 @@ function slotOverlapsBooking(
   return slotStart < existingEnd && slotEnd > existingStart;
 }
 
+export type GetAvailableSlotsOptions = {
+  workingHours?: WorkingHours;
+  timeZone?: string;
+  serviceId?: string;
+  duration?: number;
+};
+
 export async function getAvailableSlots(
   masterId: string,
   date: string,
-  serviceDuration: number,
-  options?: {
-    workingHours?: WorkingHours;
-    timeZone?: string;
-  },
+  serviceDuration?: number,
+  options?: GetAvailableSlotsOptions,
 ): Promise<BookingSlot[]> {
+  let duration = serviceDuration ?? options?.duration;
+
+  if ((!duration || duration < 1) && options?.serviceId) {
+    const { data: service, error: serviceError } = await supabase
+      .from("services")
+      .select("duration_minutes")
+      .eq("id", options.serviceId)
+      .eq("master_id", masterId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (serviceError) throw serviceError;
+    duration = service?.duration_minutes;
+  }
+
+  if (!duration || duration < 1) return [];
+
   let workingHours = options?.workingHours;
   let timeZone = options?.timeZone ?? "Europe/Kyiv";
 
@@ -412,7 +431,7 @@ export async function getAvailableSlots(
 
   const dayStartMinutes = parseTimeToMinutes(dayConfig.start);
   const dayEndMinutes = parseTimeToMinutes(dayConfig.end);
-  if (dayEndMinutes - dayStartMinutes < serviceDuration) return [];
+  if (dayEndMinutes - dayStartMinutes < duration) return [];
 
   const dateObj = zonedDateTimeToUtc(date, "00:00", timeZone);
   const rangeStart = toIsoRangeStart(dateObj, timeZone);
@@ -422,7 +441,7 @@ export async function getAvailableSlots(
     .from("bookings")
     .select("booking_start, duration_minutes")
     .eq("master_id", masterId)
-    .in("status", ["pending", "confirmed"])
+    .in("status", ["pending", "confirmed", "completed"])
     .gte("booking_start", rangeStart)
     .lte("booking_start", rangeEnd);
 
@@ -433,14 +452,12 @@ export async function getAvailableSlots(
 
   for (
     let minutes = dayStartMinutes;
-    minutes + serviceDuration <= dayEndMinutes;
-    minutes += SLOT_STEP_MINUTES
+    minutes + duration <= dayEndMinutes;
+    minutes += duration
   ) {
     const time = minutesToTime(minutes);
     const slotStart = zonedDateTimeToUtc(date, time, timeZone);
-    const slotEnd = new Date(
-      slotStart.getTime() + serviceDuration * 60 * 1000,
-    );
+    const slotEnd = new Date(slotStart.getTime() + duration * 60 * 1000);
 
     if (slotStart <= now) continue;
 

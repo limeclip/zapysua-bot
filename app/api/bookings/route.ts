@@ -10,7 +10,7 @@ import {
   serverError,
 } from "@/lib/api/response";
 import { getTelegramUserFromRequest } from "@/lib/telegram/auth";
-import { sendBookingConfirmation } from "@/lib/notifications";
+import { sendBookingCreated } from "@/lib/notifications";
 import { getOrCreateCustomer } from "@/lib/supabaseClient";
 import type { BookingStatus, BookingWithService } from "@/types";
 
@@ -232,17 +232,20 @@ export async function POST(request: Request) {
     });
 
     if (!isMasterBooking) {
-      const { data: masterTz } = await supabaseAdmin
+      const { data: masterInfo } = await supabaseAdmin
         .from("masters")
-        .select("timezone")
+        .select("business_name, timezone")
         .eq("id", masterId)
         .maybeSingle();
 
       try {
-        await sendBookingConfirmation(
+        await sendBookingCreated(
           data as BookingWithService,
           { telegram_id: clientTelegramId, name: clientName },
-          { timeZone: masterTz?.timezone ?? "Europe/Kyiv" },
+          {
+            business_name: masterInfo?.business_name ?? "",
+            timezone: masterInfo?.timezone ?? "Europe/Kyiv",
+          },
         );
       } catch (notifyError) {
         console.error("[api/bookings POST] notification:", notifyError);

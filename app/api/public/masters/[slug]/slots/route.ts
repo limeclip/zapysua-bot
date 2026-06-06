@@ -32,15 +32,12 @@ export async function GET(request: Request, context: RouteContext) {
       return badRequest("Послугу не знайдено");
     }
 
-    const slots = await getAvailableSlots(
-      profile.id,
-      date,
-      service.duration_minutes,
-      {
-        workingHours: profile.working_hours,
-        timeZone: profile.timezone,
-      },
-    );
+    const slots = await getAvailableSlots(profile.id, date, undefined, {
+      serviceId: service.id,
+      duration: service.duration_minutes,
+      workingHours: profile.working_hours,
+      timeZone: profile.timezone,
+    });
 
     return NextResponse.json({ slots });
   } catch (error) {
