@@ -7,12 +7,14 @@ import {
   Home,
   List,
   Settings,
+  Users,
 } from "lucide-react";
 
 export type TabId =
   | "home"
   | "services"
   | "bookings"
+  | "clients"
   | "statistics"
   | "settings";
 
@@ -31,6 +33,11 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
     id: "bookings",
     label: "Записи",
     icon: <Calendar className="h-5 w-5" strokeWidth={1.5} />,
+  },
+  {
+    id: "clients",
+    label: "Клієнти",
+    icon: <Users className="h-5 w-5" strokeWidth={1.5} />,
   },
   {
     id: "statistics",

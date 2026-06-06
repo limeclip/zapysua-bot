@@ -9,9 +9,11 @@ import { ArrowLeft, LoaderCircle } from "lucide-react";
 
 export function MiniAppPageShell({
   title,
+  backHref = "/",
   children,
 }: {
   title: string;
+  backHref?: string;
   children: (master: MasterWithMeta) => React.ReactNode;
 }) {
   const { ready } = useTelegram();
@@ -58,7 +60,7 @@ export function MiniAppPageShell({
     <div className="mx-auto min-h-screen w-full max-w-lg px-4 py-4">
       <header className="mb-4 flex items-center gap-3">
         <Link
-          href="/"
+          href={backHref}
           className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800"
         >
           <ArrowLeft className="h-5 w-5" />

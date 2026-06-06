@@ -44,6 +44,11 @@ export type Customer = {
   updated_at: string;
 };
 
+export type CustomerWithStats = Customer & {
+  bookings_count: number;
+  last_visit: string | null;
+};
+
 export type Service = {
   id: string;
   master_id: string;

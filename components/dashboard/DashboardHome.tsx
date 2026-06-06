@@ -5,6 +5,7 @@ import { TabBar, type TabId } from "@/components/shared/TabBar";
 import { HomeTab } from "@/components/dashboard/HomeTab";
 import { ServicesTab } from "@/components/dashboard/ServicesTab";
 import { BookingsTab } from "@/components/dashboard/BookingsTab";
+import { ClientsTab } from "@/components/dashboard/ClientsTab";
 import { StatisticsTab } from "@/components/dashboard/StatisticsTab";
 import { SettingsTab } from "@/components/dashboard/SettingsTab";
 import type { MasterWithMeta } from "@/types";
@@ -53,6 +54,7 @@ export function DashboardHome({ master, onMasterUpdate }: DashboardHomeProps) {
         {tab === "bookings" && (
           <BookingsTab master={master} onNavigateTab={navigateTab} />
         )}
+        {tab === "clients" && <ClientsTab master={master} />}
         {tab === "statistics" && <StatisticsTab master={master} />}
         {tab === "settings" && (
           <SettingsTab master={master} onMasterUpdate={onMasterUpdate} />

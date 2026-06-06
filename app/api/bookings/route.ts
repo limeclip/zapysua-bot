@@ -10,8 +10,9 @@ import {
   serverError,
 } from "@/lib/api/response";
 import { getTelegramUserFromRequest } from "@/lib/telegram/auth";
+import { sendBookingConfirmation } from "@/lib/notifications";
 import { getOrCreateCustomer } from "@/lib/supabaseClient";
-import type { BookingStatus } from "@/types";
+import type { BookingStatus, BookingWithService } from "@/types";
 
 const VALID_STATUSES: BookingStatus[] = [
   "pending",
@@ -229,6 +230,24 @@ export async function POST(request: Request) {
       notes,
       clientTelegramId,
     });
+
+    if (!isMasterBooking) {
+      const { data: masterTz } = await supabaseAdmin
+        .from("masters")
+        .select("timezone")
+        .eq("id", masterId)
+        .maybeSingle();
+
+      try {
+        await sendBookingConfirmation(
+          data as BookingWithService,
+          { telegram_id: clientTelegramId, name: clientName },
+          { timeZone: masterTz?.timezone ?? "Europe/Kyiv" },
+        );
+      } catch (notifyError) {
+        console.error("[api/bookings POST] notification:", notifyError);
+      }
+    }
 
     return NextResponse.json({ booking: data }, { status: 201 });
   } catch (error) {

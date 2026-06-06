@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { BookingStatusBadge } from "@/components/bookings/BookingStatusBadge";
+import { BOOKING_STATUS_LABELS } from "@/lib/booking-status";
 import { formatBookingDateTime } from "@/lib/dates";
 import type { BookingStatus, BookingWithService, Customer } from "@/types";
 import {
@@ -69,9 +70,9 @@ export function BookingList({
           },
         );
         onBookingUpdated(data.booking);
-        if (status === "completed") {
-          setSuccessMessage("Запис позначено як виконано");
-        }
+        setSuccessMessage(
+          `Статус змінено: ${BOOKING_STATUS_LABELS[status]}`,
+        );
       } catch (err) {
         setErrorMessage(
           err instanceof Error ? err.message : "Помилка оновлення",
@@ -104,21 +105,39 @@ export function BookingList({
 
   const openCustomerProfile = useCallback(
     async (booking: BookingWithService) => {
-      if (!booking.client_telegram_id) {
-        alert("Інформація про клієнта буде доступна пізніше");
-        return;
-      }
-
       setMenuLoadingId(booking.id);
       setErrorMessage(null);
       try {
-        const data = await apiFetch<{ customer: Customer | null }>(
-          `/api/customers?telegram_id=${booking.client_telegram_id}`,
+        if (booking.client_telegram_id) {
+          const data = await apiFetch<{ customer: Customer | null }>(
+            `/api/customers?telegram_id=${booking.client_telegram_id}`,
+          );
+          if (data.customer) {
+            router.push(`/clients/${data.customer.id}`);
+            return;
+          }
+        }
+
+        const listData = await apiFetch<{
+          customers: Customer[];
+        }>(`/api/customers?search=${encodeURIComponent(booking.client_name)}&limit=20`);
+
+        const byPhone = booking.client_phone
+          ? listData.customers.find(
+              (c) =>
+                c.phone?.replace(/\s+/g, "") ===
+                booking.client_phone?.replace(/\s+/g, ""),
+            )
+          : null;
+        const byName = listData.customers.find(
+          (c) => c.name.toLowerCase() === booking.client_name.toLowerCase(),
         );
-        if (data.customer) {
-          router.push(`/customers/${data.customer.id}`);
+        const customer = byPhone ?? byName;
+
+        if (customer) {
+          router.push(`/clients/${customer.id}`);
         } else {
-          alert("Інформація про клієнта буде доступна пізніше");
+          setErrorMessage("Клієнта не знайдено в базі");
         }
       } catch (err) {
         setErrorMessage(
