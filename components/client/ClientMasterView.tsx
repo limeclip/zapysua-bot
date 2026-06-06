@@ -13,6 +13,7 @@ import {
   type ClientMasterTabId,
 } from "@/components/client/ClientMasterTabBar";
 import { getCategoryLabel } from "@/lib/master-category";
+import { cn } from "@/lib/utils";
 import type { PublicMasterProfile, SocialLinks } from "@/types";
 import { Calendar, Clock, MapPin, Phone, User } from "lucide-react";
 
@@ -76,6 +77,7 @@ export function ClientMasterView({ profile }: ClientMasterViewProps) {
   const bookHref = `/client/${encodeURIComponent(slug)}/book`;
   const [tab, setTab] = useState<ClientMasterTabId>("services");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
   useEffect(() => {
     setIsAuthenticated(getTelegramUserId() !== null);
@@ -135,15 +137,20 @@ export function ClientMasterView({ profile }: ClientMasterViewProps) {
 
       {profile.description && (
         <div className="flex flex-col items-center gap-1 text-center">
-          <p className="line-clamp-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+          <p
+            className={cn(
+              "text-sm leading-relaxed text-zinc-600 dark:text-zinc-400",
+              !descriptionExpanded && "line-clamp-2",
+            )}
+          >
             {profile.description}
           </p>
           <button
             type="button"
-            onClick={() => alert(profile.description)}
+            onClick={() => setDescriptionExpanded((prev) => !prev)}
             className="text-xs font-medium text-zinc-500 underline-offset-2 hover:text-zinc-700 hover:underline dark:hover:text-zinc-300"
           >
-            Читати далі
+            {descriptionExpanded ? "Сховати" : "Читати далі"}
           </button>
         </div>
       )}

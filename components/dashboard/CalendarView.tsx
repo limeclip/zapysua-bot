@@ -70,12 +70,13 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
     loadMonth();
   }, [loadMonth]);
 
-  const daysWithBookings = useMemo(() => {
-    const set = new Set<string>();
+  const bookingCountsByDay = useMemo(() => {
+    const counts: Record<string, number> = {};
     for (const b of bookings) {
-      set.add(formatDateKey(new Date(b.booking_start), timeZone));
+      const key = formatDateKey(new Date(b.booking_start), timeZone);
+      counts[key] = (counts[key] ?? 0) + 1;
     }
-    return set;
+    return counts;
   }, [bookings, timeZone]);
 
   const { days, weekdayLabels } = getCalendarGrid(viewMonth);
@@ -207,7 +208,7 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
                 return <div key={`empty-${index}`} className="aspect-square" />;
               }
               const key = formatDateKey(day, timeZone);
-              const hasBookings = daysWithBookings.has(key);
+              const dayBookingCount = bookingCountsByDay[key] ?? 0;
               const isToday = key === todayKey;
               const isSelected = key === selectedDay;
 
@@ -226,15 +227,17 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
                   )}
                 >
                   {day.getDate()}
-                  {hasBookings && (
+                  {dayBookingCount > 0 && (
                     <span
                       className={cn(
-                        "absolute bottom-1 h-1 w-1 rounded-full",
+                        "absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] font-semibold leading-none",
                         isSelected
-                          ? "bg-white dark:bg-zinc-900"
-                          : "bg-zinc-900 dark:bg-zinc-100",
+                          ? "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100"
+                          : "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900",
                       )}
-                    />
+                    >
+                      {dayBookingCount}
+                    </span>
                   )}
                 </button>
               );

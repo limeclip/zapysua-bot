@@ -14,15 +14,11 @@ import {
 } from "@/components/client/ClientMasterView";
 import {
   addDays,
-  endOfMonth,
   formatDateKey,
   formatMonthYear,
   formatTime,
   getCalendarGrid,
   parseDateKey,
-  startOfMonth,
-  toIsoRangeEnd,
-  toIsoRangeStart,
 } from "@/lib/dates";
 import { isWorkingDay } from "@/lib/working-hours";
 import { cn } from "@/lib/utils";
@@ -68,9 +64,6 @@ export function ClientBookContent({ slug }: ClientBookContentProps) {
   const [error, setError] = useState<string | null>(null);
 
   const [viewMonth, setViewMonth] = useState(() => new Date());
-  const [bookingCounts, setBookingCounts] = useState<Record<string, number>>(
-    {},
-  );
 
   const timeZone = profile?.timezone ?? "Europe/Kyiv";
   const selectedService = profile?.services.find((s) => s.id === serviceId);
@@ -164,34 +157,6 @@ export function ClientBookContent({ slug }: ClientBookContentProps) {
   useEffect(() => {
     loadSlots();
   }, [loadSlots]);
-
-  useEffect(() => {
-    if (!profile) return;
-
-    let cancelled = false;
-    const monthStart = startOfMonth(viewMonth, timeZone);
-    const monthEnd = endOfMonth(viewMonth, timeZone);
-
-    async function loadBookingCounts() {
-      try {
-        const res = await fetch(
-          `/api/public/masters/${encodeURIComponent(slug)}/bookings?start_date=${encodeURIComponent(toIsoRangeStart(monthStart, timeZone))}&end_date=${encodeURIComponent(toIsoRangeEnd(monthEnd, timeZone))}`,
-        );
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        if (!cancelled) {
-          setBookingCounts(data.counts ?? {});
-        }
-      } catch {
-        if (!cancelled) setBookingCounts({});
-      }
-    }
-
-    loadBookingCounts();
-    return () => {
-      cancelled = true;
-    };
-  }, [profile, slug, viewMonth, timeZone]);
 
   const { days, weekdayLabels } = useMemo(
     () => getCalendarGrid(viewMonth),
@@ -384,7 +349,6 @@ export function ClientBookContent({ slug }: ClientBookContentProps) {
                 const isWorking = workingDayKeys.has(key);
                 const isSelected = key === selectedDate;
                 const isDisabled = isPast || !isWorking;
-                const dayBookingCount = bookingCounts[key] ?? 0;
 
                 return (
                   <button
@@ -407,18 +371,6 @@ export function ClientBookContent({ slug }: ClientBookContentProps) {
                     )}
                   >
                     {day.getDate()}
-                    {dayBookingCount > 0 && (
-                      <span
-                        className={cn(
-                          "absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] font-semibold leading-none",
-                          isSelected
-                            ? "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100"
-                            : "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900",
-                        )}
-                      >
-                        {dayBookingCount}
-                      </span>
-                    )}
                   </button>
                 );
               })}
