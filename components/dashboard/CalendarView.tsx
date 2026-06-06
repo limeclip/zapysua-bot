@@ -249,8 +249,8 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
           role="dialog"
           aria-modal="true"
         >
-          <Card className="max-h-[70vh] w-full max-w-lg overflow-y-auto animate-in fade-in">
-            <div className="mb-4 flex items-center justify-between gap-2">
+          <Card className="flex max-h-[70vh] w-full max-w-lg flex-col overflow-visible animate-in fade-in">
+            <div className="mb-4 flex shrink-0 items-center justify-between gap-2">
               <div>
                 <h3 className="font-semibold">{formatDateLong(selectedDay)}</h3>
                 <p className="text-xs text-zinc-500">
@@ -266,17 +266,19 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
                 <X className="h-5 w-5" />
               </Button>
             </div>
-            <BookingList
-              bookings={selectedBookings}
-              timeZone={timeZone}
-              onBookingUpdated={handleBookingUpdated}
-              onBookingDeleted={handleBookingDeleted}
-              compact
-              contextDay={selectedDay}
-            />
+            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-visible">
+              <BookingList
+                bookings={selectedBookings}
+                timeZone={timeZone}
+                onBookingUpdated={handleBookingUpdated}
+                onBookingDeleted={handleBookingDeleted}
+                compact
+                contextDay={selectedDay}
+              />
+            </div>
             <Button
               variant="outline"
-              className="mt-4 w-full"
+              className="mt-4 w-full shrink-0"
               onClick={() => setSelectedDay(null)}
             >
               Закрити

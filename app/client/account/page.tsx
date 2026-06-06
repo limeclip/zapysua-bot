@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api/client";
 import {
   ClientAccountTabBar,
@@ -27,6 +27,7 @@ function getTelegramUserName(): string {
 }
 
 export default function ClientAccountPage() {
+  const router = useRouter();
   const [tab, setTab] = useState<ClientAccountTabId>("bookings");
   const [profile, setProfile] = useState<ClientProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -92,15 +93,21 @@ export default function ClientAccountPage() {
 
   return (
     <div className="pb-24 animate-in fade-in">
-      <header className="mb-6 flex items-center gap-3">
-        <Link
-          href="/"
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
-          aria-label="Назад"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+      <header className="mb-6">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            aria-label="Назад"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+            Мій кабінет
+          </h1>
+        </div>
+        <div className="mt-4 flex items-center gap-3">
           {profile?.avatar_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -114,9 +121,9 @@ export default function ClientAccountPage() {
             </div>
           )}
           <div className="min-w-0">
-            <h1 className="truncate text-lg font-bold text-zinc-900 dark:text-zinc-100">
-              {profile?.name || "Мій кабінет"}
-            </h1>
+            <p className="truncate font-medium text-zinc-900 dark:text-zinc-100">
+              {profile?.name || "Клієнт"}
+            </p>
             <p className="text-xs text-zinc-500">Особистий кабінет клієнта</p>
           </div>
         </div>
