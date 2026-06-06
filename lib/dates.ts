@@ -152,6 +152,35 @@ export function formatBookingDateTime(
   return `${time} – ${day}.${month}.${bookingDayKey.slice(0, 4)}`;
 }
 
+export function getTimezoneOffsetMs(date: Date, timeZone: string): number {
+  const utc = new Date(date.toLocaleString("en-US", { timeZone: "UTC" }));
+  const local = new Date(date.toLocaleString("en-US", { timeZone }));
+  return local.getTime() - utc.getTime();
+}
+
+export function zonedDateTimeToUtc(
+  dateKey: string,
+  time: string,
+  timeZone: string,
+): Date {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+  const localAsUtc = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
+  const offset = getTimezoneOffsetMs(localAsUtc, timeZone);
+  return new Date(localAsUtc.getTime() - offset);
+}
+
+export function parseTimeToMinutes(time: string): number {
+  const [hour, minute] = time.split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+export function minutesToTime(totalMinutes: number): string {
+  const hour = Math.floor(totalMinutes / 60);
+  const minute = totalMinutes % 60;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
 export function formatBookingCount(count: number): string {
   const mod10 = count % 10;
   const mod100 = count % 100;

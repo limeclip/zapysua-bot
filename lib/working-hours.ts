@@ -1,3 +1,4 @@
+import { parseDateKey } from "@/lib/dates";
 import type { WorkingHours, WorkingHoursDay } from "@/types";
 
 export const WEEKDAYS: {
@@ -54,4 +55,39 @@ export function parseWorkingHours(
 
 export function hasWorkingHoursConfigured(hours: WorkingHours): boolean {
   return WEEKDAYS.some(({ key }) => hours[key].enabled);
+}
+
+const WEEKDAY_KEY_BY_JS_DAY: (keyof WorkingHours)[] = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+];
+
+export function getWeekdayKeyFromDate(date: Date): keyof WorkingHours {
+  return WEEKDAY_KEY_BY_JS_DAY[date.getDay()];
+}
+
+export function getWeekdayKeyInTimezone(
+  date: Date,
+  timeZone: string,
+): keyof WorkingHours {
+  const dayName = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "long",
+  })
+    .format(date)
+    .toLowerCase();
+  return dayName as keyof WorkingHours;
+}
+
+export function isWorkingDay(
+  dateKey: string,
+  workingHours: WorkingHours,
+): boolean {
+  const weekday = getWeekdayKeyFromDate(parseDateKey(dateKey));
+  return workingHours[weekday].enabled;
 }

@@ -226,10 +226,10 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
         <div className="space-y-2">
           <label className="text-xs text-zinc-500">Коротке посилання (slug)</label>
           <p className="text-[11px] text-zinc-400">
-            Латинські літери, цифри, крапка або дефіс. Без пробілів.
+            Латинські літери, цифри або дефіс. Без пробілів. Крапку використовувати не можна.
           </p>
           <Input
-            placeholder="margo.nails"
+            placeholder="margo-nails"
             value={slug}
             onChange={(e) => {
               setSlug(

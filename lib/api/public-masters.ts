@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { parseWorkingHours } from "@/lib/working-hours";
 import type { MasterCategory, PublicMasterProfile, Service } from "@/types";
 
 export async function resolveMasterBySlugOrRef(
@@ -31,7 +32,7 @@ export async function getPublicMasterProfile(
   let query = supabaseAdmin
     .from("masters")
     .select(
-      "id, business_name, logo_url, description, category, location, phone, social_links",
+      "id, business_name, logo_url, description, category, location, phone, social_links, timezone, working_hours",
     )
     .eq("is_active", true);
 
@@ -63,6 +64,10 @@ export async function getPublicMasterProfile(
     location: master.location,
     phone: master.phone,
     social_links: (master.social_links as PublicMasterProfile["social_links"]) ?? null,
+    timezone: master.timezone ?? "Europe/Kyiv",
+    working_hours: parseWorkingHours(
+      master.working_hours as Record<string, unknown> | null,
+    ),
     services: (services ?? []) as Pick<
       Service,
       "id" | "name" | "price" | "duration_minutes" | "description"

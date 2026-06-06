@@ -1,9 +1,16 @@
 import type { Master } from "@/types";
 
 export function getMasterStartParam(
-  master: Pick<Master, "slug" | "id">,
+  master: Pick<Master, "slug" | "id">
 ): string {
-  return master.slug ?? `ref_${master.id}`;
+
+  const raw =
+    master.slug ?? `ref_${master.id}`;
+
+  return raw
+    .toLowerCase()
+    .replace(/\./g, "_")
+    .replace(/[^a-z0-9_-]/g, "");
 }
 
 export function getBotUsername(): string {
@@ -34,4 +41,18 @@ export function getClientStartAppLink(
   const bot = getBotUsername();
   const param = getMasterStartParam(master);
   return `https://t.me/${bot}/app?startapp=${encodeURIComponent(param)}`;
+}
+
+
+/**
+ * OLD FALLBACK
+ */
+export function getClientBotStartLink(
+  master: Pick<Master, "slug" | "id">
+): string {
+  const bot = getBotUsername();
+
+  const param = getMasterStartParam(master);
+
+  return `https://t.me/${bot}?start=${encodeURIComponent(param)}`;
 }

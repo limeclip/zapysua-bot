@@ -1,11 +1,24 @@
 import { createClient } from "@supabase/supabase-js";
+import {
+  minutesToTime,
+  parseTimeToMinutes,
+  toIsoRangeEnd,
+  toIsoRangeStart,
+  zonedDateTimeToUtc,
+} from "@/lib/dates";
+import {
+  getWeekdayKeyInTimezone,
+  parseWorkingHours,
+} from "@/lib/working-hours";
 import type {
+  BookingSlot,
   CreateMasterInput,
   CreateServiceInput,
   Master,
   MasterCategory,
   Service,
   UpdateMasterInput,
+  WorkingHours,
 } from "@/types";
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -282,6 +295,173 @@ export async function deleteService(
     console.error("[supabase] deleteService:", error);
     throw error;
   }
+}
+
+const SLOT_STEP_MINUTES = 15;
+
+export async function getOrCreateCustomer(
+  masterId: string,
+  tgId: number | null | undefined,
+  name: string,
+  phone: string | null,
+): Promise<string> {
+  const normalizedPhone = phone?.replace(/\s+/g, "") || null;
+
+  if (tgId) {
+    const { data: byTelegram } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("master_id", masterId)
+      .eq("telegram_id", tgId)
+      .maybeSingle();
+
+    if (byTelegram) {
+      await supabase
+        .from("customers")
+        .update({
+          name,
+          ...(normalizedPhone ? { phone: normalizedPhone } : {}),
+        })
+        .eq("id", byTelegram.id);
+      return byTelegram.id;
+    }
+  }
+
+  if (normalizedPhone) {
+    const { data: byPhone } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("master_id", masterId)
+      .eq("phone", normalizedPhone)
+      .maybeSingle();
+
+    if (byPhone) {
+      await supabase
+        .from("customers")
+        .update({
+          name,
+          ...(tgId ? { telegram_id: tgId } : {}),
+        })
+        .eq("id", byPhone.id);
+      return byPhone.id;
+    }
+  }
+
+  const { data: created, error } = await supabase
+    .from("customers")
+    .insert({
+      master_id: masterId,
+      telegram_id: tgId ?? null,
+      name,
+      phone: normalizedPhone,
+    })
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  return created.id;
+}
+
+function slotOverlapsBooking(
+  slotStart: Date,
+  slotEnd: Date,
+  bookingStart: string,
+  durationMinutes: number,
+): boolean {
+  const existingStart = new Date(bookingStart);
+  const existingEnd = new Date(
+    existingStart.getTime() + durationMinutes * 60 * 1000,
+  );
+  return slotStart < existingEnd && slotEnd > existingStart;
+}
+
+export async function getAvailableSlots(
+  masterId: string,
+  date: string,
+  serviceDuration: number,
+  options?: {
+    workingHours?: WorkingHours;
+    timeZone?: string;
+  },
+): Promise<BookingSlot[]> {
+  let workingHours = options?.workingHours;
+  let timeZone = options?.timeZone ?? "Europe/Kyiv";
+
+  if (!workingHours) {
+    const { data: master, error: masterError } = await supabase
+      .from("masters")
+      .select("working_hours, timezone")
+      .eq("id", masterId)
+      .maybeSingle();
+
+    if (masterError) throw masterError;
+    if (!master) return [];
+
+    workingHours = parseWorkingHours(
+      master.working_hours as Record<string, unknown> | null,
+    );
+    timeZone = master.timezone ?? timeZone;
+  }
+
+  const weekday = getWeekdayKeyInTimezone(
+    zonedDateTimeToUtc(date, "12:00", timeZone),
+    timeZone,
+  );
+  const dayConfig = workingHours[weekday];
+  if (!dayConfig.enabled) return [];
+
+  const dayStartMinutes = parseTimeToMinutes(dayConfig.start);
+  const dayEndMinutes = parseTimeToMinutes(dayConfig.end);
+  if (dayEndMinutes - dayStartMinutes < serviceDuration) return [];
+
+  const dateObj = zonedDateTimeToUtc(date, "00:00", timeZone);
+  const rangeStart = toIsoRangeStart(dateObj, timeZone);
+  const rangeEnd = toIsoRangeEnd(dateObj, timeZone);
+
+  const { data: bookings, error: bookingsError } = await supabase
+    .from("bookings")
+    .select("booking_start, duration_minutes")
+    .eq("master_id", masterId)
+    .in("status", ["pending", "confirmed"])
+    .gte("booking_start", rangeStart)
+    .lte("booking_start", rangeEnd);
+
+  if (bookingsError) throw bookingsError;
+
+  const now = new Date();
+  const slots: BookingSlot[] = [];
+
+  for (
+    let minutes = dayStartMinutes;
+    minutes + serviceDuration <= dayEndMinutes;
+    minutes += SLOT_STEP_MINUTES
+  ) {
+    const time = minutesToTime(minutes);
+    const slotStart = zonedDateTimeToUtc(date, time, timeZone);
+    const slotEnd = new Date(
+      slotStart.getTime() + serviceDuration * 60 * 1000,
+    );
+
+    if (slotStart <= now) continue;
+
+    const hasOverlap = (bookings ?? []).some((booking) =>
+      slotOverlapsBooking(
+        slotStart,
+        slotEnd,
+        booking.booking_start,
+        booking.duration_minutes,
+      ),
+    );
+
+    if (!hasOverlap) {
+      slots.push({
+        start: slotStart.toISOString(),
+        end: slotEnd.toISOString(),
+      });
+    }
+  }
+
+  return slots;
 }
 
 export const CATEGORY_LABELS: Record<MasterCategory, string> = {

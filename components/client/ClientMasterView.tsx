@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -56,6 +58,10 @@ const SOCIAL_ITEMS: { key: keyof SocialLinks; label: string }[] = [
 ];
 
 export function ClientMasterView({ profile }: ClientMasterViewProps) {
+  const params = useParams();
+  const slug = String(params.slug ?? "");
+  const bookHref = `/client/${encodeURIComponent(slug)}/book`;
+
   const socialEntries = SOCIAL_ITEMS.filter(
     (item) => profile.social_links?.[item.key],
   );
@@ -84,12 +90,9 @@ export function ClientMasterView({ profile }: ClientMasterViewProps) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Button
-          className="w-full"
-          onClick={() => alert("Буде доступно найближчим часом")}
-        >
-          Обрати час
-        </Button>
+        <Link href={bookHref} className="w-full">
+          <Button className="w-full">Обрати час</Button>
+        </Link>
         {profile.phone && (
           <a
             href={`tel:${profile.phone}`}
@@ -181,14 +184,14 @@ export function ClientMasterView({ profile }: ClientMasterViewProps) {
                     </p>
                   )}
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
+                <Link
+                  href={`${bookHref}?service=${encodeURIComponent(service.id)}`}
                   className="shrink-0"
-                  onClick={() => alert("Буде доступно найближчим часом")}
                 >
-                  Обрати
-                </Button>
+                  <Button size="sm" variant="outline">
+                    Обрати
+                  </Button>
+                </Link>
               </Card>
             ))}
           </ul>

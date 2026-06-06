@@ -9,6 +9,8 @@ import {
   requireMasterWithSubscription,
   serverError,
 } from "@/lib/api/response";
+import { getTelegramUserFromRequest } from "@/lib/telegram/auth";
+import { getOrCreateCustomer } from "@/lib/supabaseClient";
 import type { BookingStatus } from "@/types";
 
 const VALID_STATUSES: BookingStatus[] = [
@@ -62,11 +64,39 @@ export async function GET(request: Request) {
   }
 }
 
+async function createBooking(params: {
+  masterId: string;
+  clientName: string;
+  clientPhone: string | null;
+  serviceId: string;
+  bookingStart: Date;
+  durationMinutes: number;
+  status: BookingStatus;
+  notes: string | null;
+  clientTelegramId?: number | null;
+}) {
+  const { data, error } = await supabaseAdmin
+    .from("bookings")
+    .insert({
+      master_id: params.masterId,
+      client_telegram_id: params.clientTelegramId ?? null,
+      client_name: params.clientName,
+      client_phone: params.clientPhone,
+      service_id: params.serviceId,
+      booking_start: params.bookingStart.toISOString(),
+      duration_minutes: params.durationMinutes,
+      status: params.status,
+      notes: params.notes,
+    })
+    .select(BOOKING_SELECT)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function POST(request: Request) {
   try {
-    const authResult = await requireMasterWithSubscription(request);
-    if ("error" in authResult) return authResult.error;
-
     const body = await request.json();
     const clientName = String(body.client_name ?? "").trim();
     const clientPhone =
@@ -79,7 +109,6 @@ export async function POST(request: Request) {
       body.notes === undefined || body.notes === null
         ? null
         : String(body.notes).trim() || null;
-    const status = (body.status as BookingStatus | undefined) ?? "confirmed";
 
     if (!clientName || clientName.length < 1) {
       return badRequest("Ім'я клієнта обов'язкове");
@@ -90,20 +119,48 @@ export async function POST(request: Request) {
     if (!bookingStartRaw) {
       return badRequest("Оберіть дату та час");
     }
-    if (!VALID_STATUSES.includes(status)) {
-      return badRequest("Невірний статус");
-    }
 
     const bookingStart = new Date(bookingStartRaw);
     if (Number.isNaN(bookingStart.getTime())) {
       return badRequest("Невірна дата або час");
     }
 
+    const authResult = await requireMasterWithSubscription(request);
+    const bodyMasterId = body.master_id as string | undefined;
+    const isMasterBooking = !("error" in authResult) && !bodyMasterId;
+
+    const masterId = isMasterBooking
+      ? authResult.master.id
+      : bodyMasterId;
+
+    if (!masterId) {
+      return badRequest("master_id обов'язковий");
+    }
+
+    const status: BookingStatus = isMasterBooking
+      ? ((body.status as BookingStatus | undefined) ?? "confirmed")
+      : "pending";
+
+    if (!VALID_STATUSES.includes(status)) {
+      return badRequest("Невірний статус");
+    }
+
+    const { data: master, error: masterError } = await supabaseAdmin
+      .from("masters")
+      .select("id, is_active")
+      .eq("id", masterId)
+      .maybeSingle();
+
+    if (masterError) throw masterError;
+    if (!master?.is_active) {
+      return badRequest("Майстра не знайдено");
+    }
+
     const { data: service, error: serviceError } = await supabaseAdmin
       .from("services")
       .select("id, duration_minutes, is_active")
       .eq("id", serviceId)
-      .eq("master_id", authResult.master.id)
+      .eq("master_id", masterId)
       .maybeSingle();
 
     if (serviceError) throw serviceError;
@@ -121,7 +178,7 @@ export async function POST(request: Request) {
     }
 
     const hasOverlap = await findOverlappingBooking(
-      authResult.master.id,
+      masterId,
       bookingStart,
       durationMinutes,
     );
@@ -129,28 +186,49 @@ export async function POST(request: Request) {
       return badRequest("Цей час уже зайнятий. Оберіть інший слот.");
     }
 
-    await upsertCustomerByPhone({
-      masterId: authResult.master.id,
-      name: clientName,
-      phone: clientPhone,
+    let clientTelegramId: number | null = null;
+
+    if (isMasterBooking) {
+      await upsertCustomerByPhone({
+        masterId,
+        name: clientName,
+        phone: clientPhone,
+      });
+    } else {
+      const telegramAuth = getTelegramUserFromRequest(request);
+      const bodyTelegramId = body.telegram_id;
+      clientTelegramId =
+        telegramAuth?.user.id ??
+        (bodyTelegramId !== undefined && bodyTelegramId !== null
+          ? Number(bodyTelegramId)
+          : null);
+
+      if (
+        clientTelegramId !== null &&
+        !Number.isFinite(clientTelegramId)
+      ) {
+        return badRequest("Невірний telegram_id");
+      }
+
+      await getOrCreateCustomer(
+        masterId,
+        clientTelegramId,
+        clientName,
+        clientPhone,
+      );
+    }
+
+    const data = await createBooking({
+      masterId,
+      clientName,
+      clientPhone,
+      serviceId,
+      bookingStart,
+      durationMinutes,
+      status,
+      notes,
+      clientTelegramId,
     });
-
-    const { data, error } = await supabaseAdmin
-      .from("bookings")
-      .insert({
-        master_id: authResult.master.id,
-        client_name: clientName,
-        client_phone: clientPhone,
-        service_id: serviceId,
-        booking_start: bookingStart.toISOString(),
-        duration_minutes: durationMinutes,
-        status,
-        notes,
-      })
-      .select(BOOKING_SELECT)
-      .single();
-
-    if (error) throw error;
 
     return NextResponse.json({ booking: data }, { status: 201 });
   } catch (error) {

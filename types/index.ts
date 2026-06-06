@@ -84,10 +84,17 @@ export type PublicMasterProfile = {
   location?: string | null;
   phone?: string | null;
   social_links?: SocialLinks | null;
+  timezone: string;
+  working_hours: WorkingHours;
   services: Pick<
     Service,
     "id" | "name" | "price" | "duration_minutes" | "description"
   >[];
+};
+
+export type BookingSlot = {
+  start: string;
+  end: string;
 };
 
 export type AiTone = "friendly" | "professional" | "caring" | "formal";
