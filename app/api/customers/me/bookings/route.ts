@@ -7,7 +7,7 @@ import {
 import type { BookingStatus, ClientBooking } from "@/types";
 
 const BOOKING_SELECT =
-  "id, master_id, booking_start, duration_minutes, status, services(id, name, price), masters(business_name, timezone)";
+  "id, master_id, service_id, booking_start, duration_minutes, status, services(id, name, price), masters(business_name, timezone, slug)";
 
 export async function GET(request: Request) {
   try {
@@ -39,8 +39,8 @@ export async function GET(request: Request) {
         ? (servicesRaw[0] ?? null)
         : servicesRaw;
       const mastersRaw = row.masters as
-        | { business_name: string; timezone: string }
-        | { business_name: string; timezone: string }[]
+        | { business_name: string; timezone: string; slug: string | null }
+        | { business_name: string; timezone: string; slug: string | null }[]
         | null;
       const masters = Array.isArray(mastersRaw)
         ? (mastersRaw[0] ?? null)
@@ -50,7 +50,9 @@ export async function GET(request: Request) {
         id: row.id as string,
         master_id: row.master_id as string,
         business_name: masters?.business_name ?? "Майстер",
+        master_slug: masters?.slug ?? null,
         master_timezone: masters?.timezone ?? "Europe/Kyiv",
+        service_id: (row.service_id as string | null) ?? services?.id ?? null,
         service_name: services?.name ?? null,
         service_price: services?.price ?? null,
         booking_start: row.booking_start as string,

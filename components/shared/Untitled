@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sun, Moon } from "lucide-react";
 
-export function ThemeToggle({ label = true }: { label?: boolean }) {
+export function ThemeToggleIcon() {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -13,7 +13,7 @@ export function ThemeToggle({ label = true }: { label?: boolean }) {
 
   if (!mounted) {
     return (
-      <Button variant="outline" size="sm" disabled>
+      <Button variant="outline" size="icon" disabled>
         …
       </Button>
     );
@@ -25,13 +25,9 @@ export function ThemeToggle({ label = true }: { label?: boolean }) {
   return (
     <Button
       variant="outline"
-      size={label ? "default" : "icon"}
-      className={label ? "w-full justify-between h-12" : ""}
+      size="icon"
       onClick={() => setTheme(isDark ? "light" : "dark")}
     >
-      {label ? (
-        <span>Тема: {isDark ? "темна" : "світла"}</span>
-      ) : null}
       {isDark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
     </Button>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,8 @@ import {
 import { getCategoryLabel } from "@/lib/master-category";
 import { cn } from "@/lib/utils";
 import type { PublicMasterProfile, SocialLinks } from "@/types";
-import { Calendar, MapPin, Phone, User } from "lucide-react";
+import { BellIcon, Calendar, MapPin, Phone, User } from "lucide-react";
+import { ThemeToggleIcon } from "../shared/ThemeToggleIcon";
 
 type ClientMasterViewProps = {
   profile: PublicMasterProfile;
@@ -80,6 +81,18 @@ export function ClientMasterView({ profile }: ClientMasterViewProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
+
+  const [showReadMore, setShowReadMore] = useState(false);
+  const descRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    if (descRef.current && profile.description) {
+      const el = descRef.current;
+      // Якщо висота тексту більша за висоту блоку (після line-clamp-2) – показуємо кнопку
+      setShowReadMore(el.scrollHeight > el.clientHeight);
+    }
+  }, [profile.description]);
+
   useEffect(() => {
     setIsAuthenticated(getTelegramUserId() !== null);
   }, []);
@@ -89,30 +102,36 @@ export function ClientMasterView({ profile }: ClientMasterViewProps) {
   );
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in pb-8">
-      <div className="relative flex flex-col items-center text-center">
-        {isAuthenticated && (
-          <button
-            type="button"
-            onClick={() => router.push("/client/account")}
-            className="absolute right-0 top-0 flex h-10 w-10 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            aria-label="Мій кабінет"
-          >
-            <User className="h-5 w-5" />
-          </button>
-        )}
+    <div className="flex flex-col gap-5 animate-in fade-in pb-8">
+      <div className="relative flex flex-col items-center ">
+
+        <div className="absolute right-0 top-0">
+          <div className="flex items-center gap-3">
+            <ThemeToggleIcon />
+            {isAuthenticated && (
+              <Button
+                variant="ghost"
+                size="icon"
+              >
+                <BellIcon className="size-5" strokeWidth={1} />
+              </Button>
+            )}
+          </div>
+
+        </div>
         {profile.logo_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={profile.logo_url}
             alt=""
-            className="mb-3 h-20 w-20 rounded-full object-cover shadow-sm ring-2 ring-zinc-100 dark:ring-zinc-800"
+            className="mb-3 h-22 w-22 rounded-full object-cover shadow-sm ring-2 ring-zinc-100 dark:ring-zinc-800"
           />
         ) : (
           <div className="mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
             <Calendar className="h-8 w-8 text-zinc-400" />
           </div>
         )}
+        {/* Название */}
         <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
           {profile.business_name}
         </h1>
@@ -121,24 +140,43 @@ export function ClientMasterView({ profile }: ClientMasterViewProps) {
         </Badge>
       </div>
 
-      <div className="flex flex-row flex-wrap gap-2">
+
+      {/* Кнопки */}
+      <div className="flex flex-row flex-wrap gap-1">
         <Link href={bookHref} className="min-w-0 flex-1">
-          <Button className="w-full">Обрати час</Button>
+          <Button className="w-full h-10 rounded-2xl">
+            <Calendar className="h-4 w-4" />
+            Записатися
+            {/* Обрати час */}
+          </Button>
         </Link>
         {profile.phone && (
           <a
             href={`tel:${profile.phone}`}
-            className="inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-[14px] border border-zinc-200 bg-transparent text-sm font-medium transition-all hover:bg-zinc-50 active:scale-[0.98] dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-transparent text-sm font-medium transition-all hover:bg-zinc-50 active:scale-[0.98] dark:border-zinc-700 dark:hover:bg-zinc-900"
           >
             <Phone className="h-4 w-4" />
             Позвонити
           </a>
         )}
+        {isAuthenticated && (
+          <Button
+            type="button"
+            onClick={() => router.push("/client/account")}
+            className="h-10 w-11 rounded-xl"
+            variant={"outline"}
+            size={"icon"}
+            aria-label="Мій кабінет"
+          >
+            <User className="h-5 w-5" />
+          </Button>
+        )}
       </div>
 
       {profile.description && (
-        <div className="flex flex-col items-center gap-1 text-center">
+        <div className="flex flex-col items-center gap-1 text-center px-2">
           <p
+            ref={descRef}
             className={cn(
               "text-sm leading-relaxed text-zinc-600 dark:text-zinc-400",
               !descriptionExpanded && "line-clamp-2",
@@ -146,18 +184,21 @@ export function ClientMasterView({ profile }: ClientMasterViewProps) {
           >
             {profile.description}
           </p>
-          <button
-            type="button"
-            onClick={() => setDescriptionExpanded((prev) => !prev)}
-            className="text-xs font-medium text-zinc-500 underline-offset-2 hover:text-zinc-700 hover:underline dark:hover:text-zinc-300"
-          >
-            {descriptionExpanded ? "Сховати" : "Читати далі"}
-          </button>
+          {showReadMore && (
+            <button
+              type="button"
+              onClick={() => setDescriptionExpanded((prev) => !prev)}
+              className="text-xs font-medium text-zinc-500 underline-offset-2 hover:text-zinc-700 hover:underline dark:hover:text-zinc-300"
+            >
+              {descriptionExpanded ? "Сховати" : "Читати далі"}
+            </button>
+          )}
         </div>
       )}
 
+      {/* адрес телефон */}
       {(profile.location || profile.phone) && (
-        <div className="flex flex-row flex-wrap items-center justify-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+        <div className="flex flex-row flex-wrap items-center justify-center gap-2 text-sm text-muted-foreground dark:text-zinc-400">
           {profile.location && (
             <span className="inline-flex items-center gap-1.5">
               <MapPin className="h-4 w-4 shrink-0 text-zinc-400" />
@@ -177,6 +218,7 @@ export function ClientMasterView({ profile }: ClientMasterViewProps) {
           )}
         </div>
       )}
+
 
       {socialEntries.length > 0 && (
         <div className="flex flex-row items-center justify-center gap-4">
@@ -198,27 +240,25 @@ export function ClientMasterView({ profile }: ClientMasterViewProps) {
           })}
         </div>
       )}
+      <div className="flex flex-col gap-3">
+        <ClientMasterTabBar active={tab} onChange={setTab} />
 
-      <ClientMasterTabBar active={tab} onChange={setTab} />
-
-      {tab === "services" && (
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-3">
-            <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              Послуги
-            </h2>
-            <ClientServicesTab
-              services={profile.services}
-              layout={profile.services_layout ?? "list"}
-              bookHref={bookHref}
-            />
+        {tab === "services" && (
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-3">
+              <ClientServicesTab
+                services={profile.services}
+                layout={profile.services_layout ?? "list"}
+                bookHref={bookHref}
+              />
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {tab === "bookings" && (
-        <ClientMasterBookings masterId={profile.id} />
-      )}
+        {tab === "bookings" && (
+          <ClientMasterBookings masterId={profile.id} />
+        )}
+      </div>
     </div>
   );
 }

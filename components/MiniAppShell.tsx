@@ -6,7 +6,7 @@ import { useTelegram } from "@/components/providers/TelegramProvider";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { DashboardHome } from "@/components/dashboard/DashboardHome";
 import type { MasterWithMeta } from "@/types";
-import { LoaderCircle } from "lucide-react";
+
 
 export function MiniAppShell() {
   const { ready, userId } = useTelegram();
@@ -38,7 +38,7 @@ export function MiniAppShell() {
 
   if (!ready || loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
           <div className="relative mx-auto mb-3 h-10 w-10">
             <svg
@@ -49,7 +49,7 @@ export function MiniAppShell() {
             >
               <defs>
                 <linearGradient id="uaGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#72a7fc" />
+                  <stop offset="0%" stopColor="#6ca6fc" />
                   <stop offset="100%" stopColor="#ffd75e" />
                 </linearGradient>
               </defs>
@@ -60,7 +60,7 @@ export function MiniAppShell() {
                 stroke="url(#uaGradient)"
                 strokeWidth="2.5"
                 strokeLinecap="round"
-                strokeDasharray="40 12.8"   // ← ОСНОВНА ЗМІНА: довжина дуги 50 (майже повне коло)
+                strokeDasharray="60 12.8"   // ← ОСНОВНА ЗМІНА: довжина дуги 50 (майже повне коло)
                 fill="none"
               />
             </svg>
@@ -89,7 +89,7 @@ export function MiniAppShell() {
     );
   }
 
-  if (!master?.is_onboarded) {
+  if (master?.is_onboarded) {
     return (
       <OnboardingWizard
         onComplete={() => {

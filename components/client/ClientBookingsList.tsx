@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
 import { ClientBookingCard } from "@/components/client/ClientBookingCard";
+import { RescheduleBookingModal } from "@/components/client/RescheduleBookingModal";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiErrorState } from "@/components/shared/ApiErrorState";
@@ -23,6 +24,8 @@ export function ClientBookingsList({
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [rescheduleBooking, setRescheduleBooking] =
+    useState<ClientBooking | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -106,10 +109,23 @@ export function ClientBookingsList({
                 showMaster={showMaster}
                 cancelling={cancellingId === booking.id}
                 onCancel={handleCancel}
+                onReschedule={setRescheduleBooking}
               />
             </li>
           ))}
         </ul>
+      )}
+
+      {rescheduleBooking && (
+        <RescheduleBookingModal
+          booking={rescheduleBooking}
+          open
+          onClose={() => setRescheduleBooking(null)}
+          onRescheduled={() => {
+            setSuccessMessage("Запис перенесено");
+            load();
+          }}
+        />
       )}
     </div>
   );

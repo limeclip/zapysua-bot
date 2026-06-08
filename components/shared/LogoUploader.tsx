@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getApiHeaders } from "@/lib/api/client";
+import { ImageIcon } from "lucide-react";
 
 type LogoUploaderProps = {
   previewUrl?: string | null;
@@ -126,7 +127,7 @@ export function LogoUploader({
             />
           ) : (
             <div className={placeholderClassName}>
-              📷
+            <ImageIcon className="size-10 text-muted-foreground" strokeWidth={0.75} />
             </div>
           )}
           <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">

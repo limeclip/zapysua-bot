@@ -10,32 +10,66 @@ import { LogoUploader } from "@/components/shared/LogoUploader";
 import { useTelegram } from "@/components/providers/TelegramProvider";
 import type { AiTone, MasterCategory, OnboardingPayload } from "@/types";
 import { cn } from "@/lib/utils";
+import { Briefcase, Car, GraduationCap, Heart, HeartHandshake, Package, Smile, Sparkles } from "lucide-react";
 
 const TOTAL_STEPS = 6;
 
-const CATEGORIES: { id: MasterCategory; label: string; icon: string }[] = [
-  { id: "beauty", label: "Б'юті", icon: "💅" },
-  { id: "health", label: "Здоров'я", icon: "🧘" },
-  { id: "education", label: "Освіта", icon: "📚" },
-  { id: "auto", label: "Авто", icon: "🚗" },
-  { id: "other", label: "Інше", icon: "🎨" },
-];
+export const CATEGORIES: {
+  id: MasterCategory;
+  label: string;
+  icon: React.ReactNode;
+  description: string;
+}[] = [
+    {
+      id: "beauty",
+      label: "Б'юті",
+      icon: <Sparkles className="size-6" strokeWidth={1.5} />,
+      description: "Салон краси, манікюр, перукарня, візаж, брови, макіяж, лазерна епіляція",
+    },
+    {
+      id: "health",
+      label: "Здоров'я",
+      icon: <Heart className="size-6" strokeWidth={1.5} />,
+      description: "Масаж, йога, психолог, медичні послуги, фітнес, дієтологія",
+    },
+    {
+      id: "education",
+      label: "Освіта",
+      icon: <GraduationCap className="size-6" strokeWidth={1.5} />,
+      description: "Репетитори, курси, тренінги, навчальні центри, онлайн-школи",
+    },
+    {
+      id: "auto",
+      label: "Авто",
+      icon: <Car className="size-6" strokeWidth={1.5} />,
+      description: "Автосервіс, шиномонтаж, мийка, діагностика, тюнінг, заправка",
+    },
+    {
+      id: "other",
+      label: "Інше",
+      icon: <Package className="size-6" strokeWidth={1.5} />,
+      description: "Юридичні послуги, консультації, ремонт, прибирання, доставка",
+    },
+  ];
 
-const TONES: { id: AiTone; label: string; desc: string }[] = [
+const TONES: { id: AiTone; label: string; desc: string; icon: React.ReactNode }[] = [
   {
     id: "friendly",
     label: "Дружній",
     desc: "Турботливий, теплий стиль спілкування",
+    icon: <Smile className="h-5 w-5" strokeWidth={1.5} />,
   },
   {
     id: "professional",
     label: "Професійний",
     desc: "Стриманий, діловий тон",
+    icon: <Briefcase className="h-5 w-5" strokeWidth={1.5} />,
   },
   {
     id: "caring",
     label: "Дбайливий",
     desc: "М'який, уважний до клієнта",
+    icon: <HeartHandshake className="h-5 w-5" strokeWidth={1.5} />,
   },
 ];
 
@@ -144,7 +178,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             autoFocus
           />
           <Button
-            className="mt-6 w-full"
+            className="mt-6 w-full "
             disabled={businessName.trim().length < 2}
             onClick={next}
           >
@@ -158,21 +192,32 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
           <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
             Оберіть категорію
           </p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
                 onClick={() => setCategory(cat.id)}
                 className={cn(
-                  "flex flex-col items-center gap-2 rounded-[14px] border p-4 transition-all",
+                  "flex items-center gap-4 rounded-2xl border p-4 transition-all",
                   category === cat.id
-                    ? "border-zinc-900 bg-zinc-50 shadow-sm dark:border-zinc-100 dark:bg-zinc-800"
-                    : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900",
+                    ? "border-foreground bg-foreground text-white shadow-sm "
+                    : " bg-secondary hover:shadow-md border-border/60",
                 )}
               >
-                <span className="text-2xl">{cat.icon}</span>
-                <span className="text-sm font-medium">{cat.label}</span>
+                <div className="w-12 h-12 bg-background rounded-full flex items-center justify-center shrink-0">
+                  <span className="text-2xl text-foreground">{cat.icon}</span>
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="text-md font-medium">{cat.label}</span>
+                  <span className={cn(
+                    "text-sm text-muted-foreground text-left",
+                    category === cat.id
+                      ? "text-white"
+                      : "",
+                  )}>{cat.description}</span>
+                </div>
+
               </button>
             ))}
           </div>
@@ -222,18 +267,30 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               type="button"
               onClick={() => setTone(t.id)}
               className={cn(
-                "w-full rounded-[14px] border p-4 text-left transition-all",
+                "w-full rounded-2xl gap-4 border p-4 text-left transition-all",
                 tone === t.id
-                  ? "border-zinc-900 bg-zinc-50 dark:border-zinc-100 dark:bg-zinc-800"
-                  : "border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900",
+                  ? "border-foreground bg-foreground text-white shadow-sm "
+                  : " bg-secondary hover:shadow-md border-border/60",
               )}
             >
-              <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                {t.label}
-              </p>
-              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                {t.desc}
-              </p>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-background rounded-full flex items-center justify-center shrink-0">
+                  <span className="text-2xl text-foreground">  {t.icon}</span>
+                </div>
+                <div className="flex flex-col items-start">
+                  <p className="font-medium ">
+                    {t.label}
+                  </p>
+                  <span className={cn(
+                    "text-sm text-muted-foreground text-left",
+                    tone === t.id
+                      ? "text-white"
+                      : "",
+                  )}>
+                  {t.desc}
+                </span>
+                </div>
+              </div>
             </button>
           ))}
           <div className="flex gap-3 pt-4">

@@ -132,6 +132,45 @@ export async function sendBookingNoShow(
   await sendTelegramMessage(telegramId, text);
 }
 
+export async function sendBookingRescheduled(
+  booking: BookingWithService,
+  customer: { telegram_id?: number | null },
+  options?: { timeZone?: string },
+): Promise<void> {
+  const telegramId = resolveTelegramId(booking, customer);
+  if (!telegramId) return;
+
+  const timeZone = options?.timeZone ?? "Europe/Kyiv";
+  const { serviceName, dateTime } = formatBookingDetails(booking, timeZone);
+
+  const text =
+    `✅ Запис перенесено!\n\n` +
+    `Новий час: ${serviceName}, ${dateTime}.\n` +
+    `Очікуйте підтвердження від майстра.`;
+
+  await sendTelegramMessage(telegramId, text);
+}
+
+export async function sendBookingRescheduledToMaster(
+  booking: BookingWithService,
+  master: {
+    telegram_id: number;
+    business_name: string;
+    client_name: string;
+  },
+  options?: { timeZone?: string },
+): Promise<void> {
+  const timeZone = options?.timeZone ?? "Europe/Kyiv";
+  const { serviceName, dateTime } = formatBookingDetails(booking, timeZone);
+
+  const text =
+    `📅 Клієнт ${master.client_name} переніс запис (перенесено)\n\n` +
+    `Послуга: ${serviceName}\n` +
+    `Новий час: ${dateTime}`;
+
+  await sendTelegramMessage(master.telegram_id, text);
+}
+
 export async function sendBookingReminder(
   booking: BookingWithService,
   telegramId: number,

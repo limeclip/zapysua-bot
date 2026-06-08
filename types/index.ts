@@ -64,7 +64,9 @@ export type ClientBooking = {
   id: string;
   master_id: string;
   business_name: string;
+  master_slug: string | null;
   master_timezone: string;
+  service_id: string | null;
   service_name: string | null;
   service_price: number | null;
   booking_start: string;

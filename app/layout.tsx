@@ -1,9 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { TelegramProvider } from "@/components/providers/TelegramProvider";
 import "./globals.css";
+import { cn } from "@/lib/utils";
+
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="uk" suppressHydrationWarning>
+    <html lang="uk" suppressHydrationWarning className={cn("font-sans", inter.variable)}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-white text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100`}
       >
@@ -43,7 +47,9 @@ export default function RootLayout({
           strategy="beforeInteractive"
         />
         <ThemeProvider>
-          <TelegramProvider>{children}</TelegramProvider>
+          <TelegramProvider>
+              {children}
+          </TelegramProvider>
         </ThemeProvider>
       </body>
     </html>

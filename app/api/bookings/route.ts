@@ -194,7 +194,15 @@ export async function POST(request: Request) {
 
     let clientTelegramId: number | null = null;
 
-    if (!isMasterBooking) {
+    if (isMasterBooking) {
+      const bodyTelegramId = body.client_telegram_id;
+      if (bodyTelegramId !== undefined && bodyTelegramId !== null) {
+        clientTelegramId = Number(bodyTelegramId);
+        if (!Number.isFinite(clientTelegramId)) {
+          return badRequest("Невірний client_telegram_id");
+        }
+      }
+    } else {
       const telegramAuth = getTelegramUserFromRequest(request);
       const bodyTelegramId = body.telegram_id;
       clientTelegramId =
@@ -231,13 +239,13 @@ export async function POST(request: Request) {
       clientTelegramId,
     });
 
-    if (!isMasterBooking) {
-      const { data: masterInfo } = await supabaseAdmin
-        .from("masters")
-        .select("business_name, timezone")
-        .eq("id", masterId)
-        .maybeSingle();
+    const { data: masterInfo } = await supabaseAdmin
+      .from("masters")
+      .select("business_name, timezone")
+      .eq("id", masterId)
+      .maybeSingle();
 
+    if (clientTelegramId) {
       try {
         await sendBookingCreated(
           data as BookingWithService,

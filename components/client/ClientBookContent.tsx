@@ -275,8 +275,8 @@ export function ClientBookContent({ slug }: ClientBookContentProps) {
                 className={cn(
                   "w-full rounded-[14px] border p-4 text-left transition-all",
                   selected
-                    ? "border-zinc-900 bg-zinc-50 dark:border-zinc-100 dark:bg-zinc-800"
-                    : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600",
+                    ? "border-[#6ca6fc] border-2 bg-zinc-50 dark:border-[#6ca6fc] dark:bg-zinc-800"
+                    : "border-zinc-200 hover:border-[#6ca6fc] dark:border-zinc-700 dark:hover:border-[#6ca6fc]",
                 )}
               >
                 <div className="flex items-center justify-between gap-2">
@@ -293,7 +293,7 @@ export function ClientBookContent({ slug }: ClientBookContentProps) {
                     </p>
                   </div>
                   {selected && (
-                    <Check className="h-5 w-5 shrink-0 text-zinc-900 dark:text-zinc-100" />
+                    <Check className="h-5 w-5 shrink-0 text-[#6ca6fc]" />
                   )}
                 </div>
               </button>

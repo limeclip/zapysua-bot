@@ -230,13 +230,13 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
                   {dayBookingCount > 0 && (
                     <span
                       className={cn(
-                        "absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] font-semibold leading-none",
+                        "absolute right-0.5 top-0.5 flex h-5.5 min-w-5.5 items-center justify-center rounded-full px-0.5 text-xs font-semibold leading-none",
                         isSelected
                           ? "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100"
                           : "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900",
                       )}
                     >
-                      {dayBookingCount}
+                      {dayBookingCount} 
                     </span>
                   )}
                 </button>

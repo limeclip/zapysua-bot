@@ -7,7 +7,7 @@ import { formatPhoneInput, normalizeUaPhone } from "@/lib/phone";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type {
   BookingWithService,
@@ -68,6 +68,9 @@ export function CreateBookingModal({
   const [serviceId, setServiceId] = useState("");
   const [bookingStart, setBookingStart] = useState("");
   const [notes, setNotes] = useState("");
+  const [selectedCustomerTelegramId, setSelectedCustomerTelegramId] = useState<
+    number | null
+  >(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
   const searchQuery = getSearchQuery(clientName, clientPhone);
@@ -157,12 +160,14 @@ export function CreateBookingModal({
     if (customer.phone) {
       setClientPhone(formatPhoneInput(customer.phone));
     }
+    setSelectedCustomerTelegramId(customer.telegram_id ?? null);
     setShowSuggestions(false);
     setCustomerSuggestions([]);
   };
 
   const handlePhoneChange = (value: string) => {
     setClientPhone(formatPhoneInput(value));
+    setSelectedCustomerTelegramId(null);
     setShowSuggestions(true);
   };
 
@@ -203,6 +208,7 @@ export function CreateBookingModal({
           body: JSON.stringify({
             client_name: trimmedName,
             client_phone: normalizedPhone,
+            client_telegram_id: selectedCustomerTelegramId,
             service_id: serviceId,
             booking_start: startDate.toISOString(),
             duration_minutes: selectedService?.duration_minutes,
@@ -214,6 +220,7 @@ export function CreateBookingModal({
       onCreated(data.booking);
       setClientName("");
       setClientPhone("");
+      setSelectedCustomerTelegramId(null);
       setCustomerSuggestions([]);
       setShowSuggestions(false);
       setNotes("");
@@ -261,6 +268,7 @@ export function CreateBookingModal({
                 value={clientName}
                 onChange={(e) => {
                   setClientName(e.target.value);
+                  setSelectedCustomerTelegramId(null);
                   setShowSuggestions(true);
                 }}
                 onFocus={() => setShowSuggestions(true)}
@@ -311,15 +319,17 @@ export function CreateBookingModal({
                 Додайте послуги в розділі «Послуги»
               </p>
             ) : (
-              <Select
-                value={serviceId}
-                onChange={(e) => setServiceId(e.target.value)}
-              >
-                {services.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} — {s.price} грн, {s.duration_minutes} хв
-                  </option>
-                ))}
+              <Select value={serviceId} onValueChange={setServiceId}>
+                <SelectTrigger className="w-full bg-transparent border border-border data-[size=default]:h-12">
+                  <SelectValue placeholder="Оберіть послугу" />
+                </SelectTrigger>
+                <SelectContent className="z-[100]" sideOffset={5} position="popper">
+                  {services.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name} — {s.price} грн, {s.duration_minutes} хв
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             )}
           </div>

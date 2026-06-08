@@ -12,6 +12,7 @@ type ClientBookingCardProps = {
   showMaster?: boolean;
   cancelling?: boolean;
   onCancel?: (id: string) => void;
+  onReschedule?: (booking: ClientBooking) => void;
 };
 
 export function ClientBookingCard({
@@ -19,6 +20,7 @@ export function ClientBookingCard({
   showMaster = true,
   cancelling = false,
   onCancel,
+  onReschedule,
 }: ClientBookingCardProps) {
   const canCancel =
     onCancel &&
@@ -71,7 +73,8 @@ export function ClientBookingCard({
             variant="outline"
             size="sm"
             className="flex-1"
-            onClick={() => alert("Буде доступно найближчим часом")}
+            disabled={!onReschedule || !booking.service_id}
+            onClick={() => onReschedule?.(booking)}
           >
             <Repeat className="h-3.5 w-3.5" />
             Перенести

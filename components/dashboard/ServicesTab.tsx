@@ -177,7 +177,7 @@ export function ServicesTab() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="text-red-500"
+                className="text-destructive"
                 onClick={() => setImageUrl(null)}
               >
                 Видалити зображення
@@ -216,7 +216,7 @@ export function ServicesTab() {
         <ul className="space-y-3">
           {services.map((service) => (
             <Card key={service.id} className="flex flex-col gap-3">
-              <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start justify-between gap-3">
                 {service.image_url && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -241,7 +241,7 @@ export function ServicesTab() {
                 <button
                   type="button"
                   onClick={() => handleDelete(service.id)}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-950/30"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-red-50 dark:hover:bg-red-950/30 dark:hover:text-destructive hover:text-destructive"
                   aria-label="Видалити послугу"
                 >
                   <Trash className="h-4 w-4" />
