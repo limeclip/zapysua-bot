@@ -89,7 +89,7 @@ export function MiniAppShell() {
     );
   }
 
-  if (master?.is_onboarded) {
+  if (!master?.is_onboarded) {
     return (
       <OnboardingWizard
         onComplete={() => {
