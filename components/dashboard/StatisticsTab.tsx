@@ -37,11 +37,11 @@ function StatCard({
         {icon}
       </div>
       <div>
-        <p className="text-xs text-zinc-500">{label}</p>
+        <p className="text-base text-zinc-500">{label}</p>
         <p className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
           {value}
         </p>
-        {sub && <p className="text-xs text-zinc-400">{sub}</p>}
+        {sub && <p className="text-sm text-muted-foreground">{sub}</p>}
       </div>
     </Card>
   );
@@ -64,32 +64,32 @@ function RevenueBlock({
     <Card className="space-y-3">
       <div className="flex items-center gap-2">
         <CircleDollarSign className="h-5 w-5 text-zinc-600" />
-        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+        <p className="text-base font-medium text-zinc-900 dark:text-zinc-100">
           Виручка
         </p>
       </div>
-      <p className="text-xs text-zinc-500">
+      <p className="text-sm text-zinc-500">
         Лише завершені записи з ціною послуги
       </p>
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/50">
-          <p className="text-[10px] text-zinc-500">За місяць</p>
+          <p className="text-sm text-zinc-500">За місяць</p>
           <p className="text-lg font-semibold">
             {monthRevenue != null ? `${monthRevenue} грн` : "—"}
           </p>
           {monthStats && (
-            <p className="text-[10px] text-zinc-400">
+            <p className="text-sm text-muted-foreground">
               {monthStats.completed_count} виконано
             </p>
           )}
         </div>
         <div className="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/50">
-          <p className="text-[10px] text-zinc-500">За тиждень</p>
+          <p className="text-sm text-zinc-500">За тиждень</p>
           <p className="text-lg font-semibold">
             {weekRevenue != null ? `${weekRevenue} грн` : "—"}
           </p>
           {weekStats && (
-            <p className="text-[10px] text-zinc-400">
+            <p className="text-sm text-muted-foreground">
               {weekStats.completed_count} виконано
             </p>
           )}

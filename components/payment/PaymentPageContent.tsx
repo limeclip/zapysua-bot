@@ -138,7 +138,7 @@ export function PaymentPageContent() {
           <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
             Підписка та оплата
           </h1>
-          <p className="text-xs text-zinc-500">Telegram Stars</p>
+          <p className="text-sm text-muted-foreground">Telegram Stars</p>
         </div>
       </div>
 
@@ -152,13 +152,13 @@ export function PaymentPageContent() {
               {statusLabel}
             </p>
             {subscription?.status === "trial" && subscription.trial_end_date && (
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-sm text-muted-foreground">
                 Пробний період до {formatUkDate(subscription.trial_end_date)}
               </p>
             )}
             {subscription?.status === "active" &&
               subscription.subscription_end_date && (
-                <p className="mt-1 text-xs text-zinc-500">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Активна до{" "}
                   {formatUkDate(subscription.subscription_end_date)}
                 </p>
@@ -191,7 +191,7 @@ export function PaymentPageContent() {
                   className={cn(
                     "rounded-[14px] border p-4 text-left transition-all",
                     selected
-                      ? "border-zinc-900 bg-zinc-50 ring-1 ring-zinc-900 dark:border-zinc-100 dark:bg-zinc-800 dark:ring-zinc-100"
+                      ? "border-[#ffd75e] bg-zinc-50 ring-1 ring-[#ffd75e] dark:border-[#ffd75e] dark:bg-zinc-800 dark:ring-[#ffd75e]"
                       : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-700",
                   )}
                 >
@@ -201,7 +201,7 @@ export function PaymentPageContent() {
                         {plan.cardLabel} — {plan.amount}{" "}
                         <Star className="inline h-4 w-4 fill-amber-400 text-amber-400" />
                       </p>
-                      <p className="mt-1 text-xs text-zinc-500">
+                      <p className="mt-1 text-sm text-muted-foreground">
                         {plan.description}
                       </p>
                     </div>
@@ -226,7 +226,7 @@ export function PaymentPageContent() {
             </p>
           )}
 
-          <Button className="mb-3 w-full" disabled={paying} onClick={handlePay}>
+          <Button className="mb-3 w-full h-12" disabled={paying} onClick={handlePay}>
             {paying ? (
               <>
                 <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -242,7 +242,7 @@ export function PaymentPageContent() {
 
           <Button
             variant="outline"
-            className="w-full"
+            className="w-full h-12 dark:border-white/30"
             onClick={load}
             disabled={loading}
           >

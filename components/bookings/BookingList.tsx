@@ -243,7 +243,7 @@ export function BookingList({
                 <div className="mt-3 flex gap-2">
                   <Button
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 h-10"
                     disabled={busy}
                     onClick={() => updateStatus(booking.id, "confirmed")}
                   >
@@ -253,7 +253,7 @@ export function BookingList({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 h-10"
                     disabled={busy}
                     onClick={() => updateStatus(booking.id, "cancelled")}
                   >
@@ -267,7 +267,7 @@ export function BookingList({
                 <div className="mt-3 space-y-2">
                   <Button
                     size="sm"
-                    className="w-full"
+                    className="w-full h-10"
                     disabled={busy}
                     onClick={() => updateStatus(booking.id, "completed")}
                   >
@@ -278,7 +278,7 @@ export function BookingList({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1 text-xs"
+                      className="flex-1 h-10"
                       disabled={busy}
                       onClick={() => updateStatus(booking.id, "no_show")}
                     >
@@ -288,7 +288,7 @@ export function BookingList({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1"
+                      className="flex-1 h-10"
                       disabled={busy}
                       onClick={() => updateStatus(booking.id, "cancelled")}
                     >

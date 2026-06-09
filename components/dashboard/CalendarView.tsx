@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import type { BookingSlot, BookingWithService, MasterWithMeta, Service } from "@/types";
 import { ChevronLeft, ChevronRight, Clock, LoaderCircle, Plus, X } from "lucide-react";
 import Link from "next/link";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 type CalendarViewProps = {
   master: MasterWithMeta;
@@ -180,9 +181,9 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
 
   return (
     <div className="space-y-4">
-      <Button className="w-full" onClick={() => setCreateModalOpen(true)}>
+      <Button className="w-full h-12" onClick={() => setCreateModalOpen(true)}>
         <Plus className="h-4 w-4" />
-        Створити запис вручну
+        Створити запис
       </Button>
 
       <CreateBookingModal
@@ -260,11 +261,11 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
                   type="button"
                   onClick={() => handleDaySelect(key)}
                   className={cn(
-                    "relative flex aspect-square flex-col items-center justify-center rounded-xl text-sm transition-colors",
+                    "relative flex aspect-square flex-col items-center justify-center rounded-xl text-sm transition-colors bg-secondary",
                     isSelected
                       ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
                       : isToday
-                        ? "bg-zinc-100 dark:bg-zinc-800"
+                        ? "bg-[#ffd75e] text-foregrond text-lg font-semibold dark:bg-[#ffd75e] dark:text-black "
                         : "hover:bg-zinc-50 dark:hover:bg-zinc-800/80",
                   )}
                 >
@@ -272,13 +273,13 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
                   {dayBookingCount > 0 && (
                     <span
                       className={cn(
-                        "absolute right-0.5 top-0.5 flex h-5.5 min-w-5.5 items-center justify-center rounded-full px-0.5 text-xs font-semibold leading-none",
+                        "absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-xs font-semibold leading-none",
                         isSelected
                           ? "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100"
                           : "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900",
                       )}
                     >
-                      {dayBookingCount} 
+                      {dayBookingCount}
                     </span>
                   )}
                 </button>
@@ -327,21 +328,24 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
                     Вільний час
                   </p>
                   {services.length > 1 && freeSlotsServiceId && (
-                    <select
+                    <Select
                       value={freeSlotsServiceId}
-                      onChange={(e) => {
-                        const newId = e.target.value;
+                      onValueChange={(newId) => {
                         setFreeSlotsServiceId(newId);
                         loadFreeSlots(selectedDay, newId);
                       }}
-                      className="h-10 w-full rounded-lg border border-zinc-200 bg-transparent px-2 text-sm dark:border-zinc-700"
                     >
-                      {services.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-10 w-full rounded-lg border border-zinc-200 bg-transparent px-2 text-sm dark:border-zinc-700">
+                        <SelectValue placeholder="Оберіть послугу" />
+                      </SelectTrigger>
+                      <SelectContent className="z-[100] p-2" sideOffset={5} position="popper">
+                        {services.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   )}
                   {freeSlotsLoading ? (
                     <div className="flex justify-center py-4">
@@ -368,7 +372,7 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
             </div>
             <Button
               variant="outline"
-              className="mt-4 w-full shrink-0"
+              className="mt-4 w-full shrink-0 h-10"
               onClick={() => loadFreeSlots(selectedDay)}
             >
               <Clock className="h-4 w-4" />
@@ -376,7 +380,7 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
             </Button>
             <Button
               variant="outline"
-              className="mt-2 w-full shrink-0"
+              className="mt-2 w-full shrink-0 h-10"
               onClick={() => {
                 setSelectedDay(null);
                 setShowFreeSlots(false);

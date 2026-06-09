@@ -69,7 +69,7 @@ export function TabBar({
   return (
     <>
     <nav className="fixed bottom-0 left-0 right-0 z-50  border-zinc-200/80 bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-950/90">
-      <div className="mx-auto flex max-w-lg gap-2 pt-2 px-3 pb-2">
+      <div className="mx-auto flex max-w-lg gap-1 pt-2 px-3 pb-2">
         <div className="bg-background border border-border/50 shadow-sm rounded-full flex items-center justify-around px-1 w-full">
         {TABS.map((tab) => (
           <button

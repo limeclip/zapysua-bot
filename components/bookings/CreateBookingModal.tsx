@@ -454,7 +454,7 @@ export function CreateBookingModal({
           )}
 
           <Button
-            className="w-full"
+            className="w-full h-12"
             disabled={saving || services.length === 0}
             onClick={handleSubmit}
           >

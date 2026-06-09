@@ -48,7 +48,7 @@ export function DashboardHome({ master, onMasterUpdate }: DashboardHomeProps) {
   
 
   return (
-    <div className="mx-auto min-h-screen w-full max-w-lg pb-24 relative">
+    <div className="mx-auto min-h-screen w-full max-w-lg pb-24 relative overflow-x-hidden">
       <div className="absolute top-0 right-0 left-0 inset-0 -z-10 -mx-4 dark:hidden">
         <div className="min-h-screen h-full w-full flex bg-linear-to-br  from-transparent from-10% via-[#6ca6fc]/10 dark:via-[#556a7d]/20 via-30%
          to-[#ffd75e]/10 dark:to-[#625c42]/20 to-90% animate-gradient-x"  />

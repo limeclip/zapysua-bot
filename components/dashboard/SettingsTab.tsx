@@ -276,7 +276,7 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
             {subscriptionStatusLabel}
           </p>
           {subscriptionEndDate && (
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-sm text-zinc-500">
               {subscriptionActive ? "Діє до" : "Закінчилась"}{" "}
               {formatUkDate(subscriptionEndDate)}
             </p>

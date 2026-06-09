@@ -168,13 +168,13 @@ export function HomeTab({ master, onNavigateTab }: HomeTabProps) {
                   <p className="text-lg font-semibold">
                     {weekStats.total_bookings}
                   </p>
-                  <p className="text-[11px] text-zinc-500">За тиждень</p>
+                  <p className="text-sm text-zinc-500">За тиждень</p>
                 </Card>
                 <Card className="p-3 text-center">
                   <p className="text-lg font-semibold">
                     {weekStats.confirmed_percent}%
                   </p>
-                  <p className="text-[11px] text-zinc-500 flex items-center justify-center gap-0.5">
+                  <p className="text-sm text-zinc-500 flex items-center justify-center gap-1">
                     <TrendingUp className="h-3 w-3" />
                     Підтверд.
                   </p>
@@ -185,7 +185,7 @@ export function HomeTab({ master, onNavigateTab }: HomeTabProps) {
                       ? `${weekStats.revenue}`
                       : "—"}
                   </p>
-                  <p className="text-[11px] text-zinc-500 flex items-center justify-center gap-0.5">
+                  <p className="text-sm text-zinc-500 flex items-center justify-center gap-1">
                     <CircleDollarSign className="h-3 w-3" />
                     {weekStats.revenue != null ? "грн" : "Виручка"}
                   </p>
