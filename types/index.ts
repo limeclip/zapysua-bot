@@ -12,6 +12,8 @@ export type SocialLinks = {
   tiktok?: string;
   facebook?: string;
   telegram?: string;
+  youtube?: string;
+  website?: string;
 };
 
 export type ServicesLayout = "list" | "grid";
@@ -235,6 +237,7 @@ export type OnboardingPayload = {
   location?: string | null;
   tone: AiTone;
   logo_url?: string | null;
+  skip_trial?: boolean;
 };
 
 export type SessionStep =

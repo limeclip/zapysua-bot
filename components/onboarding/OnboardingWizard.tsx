@@ -8,11 +8,27 @@ import { Input } from "@/components/ui/input";
 import { ProgressBar } from "@/components/shared/ProgressBar";
 import { LogoUploader } from "@/components/shared/LogoUploader";
 import { useTelegram } from "@/components/providers/TelegramProvider";
-import type { AiTone, MasterCategory, OnboardingPayload } from "@/types";
+import { STAR_PLAN_PRICES, type StarPlanId } from "@/lib/stars-plans";
+import { hasPaidSubscriptionActive } from "@/lib/subscription";
+import type { AiTone, MasterCategory, MasterWithMeta, OnboardingPayload } from "@/types";
 import { cn } from "@/lib/utils";
-import { Briefcase, Car, GraduationCap, Heart, HeartHandshake, Package, Smile, Sparkles } from "lucide-react";
+import {
+  Briefcase,
+  Car,
+  Gift,
+  GraduationCap,
+  Heart,
+  HeartHandshake,
+  LoaderCircle,
+  Package,
+  Smile,
+  Sparkles,
+  Star,
+} from "lucide-react";
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
+
+type OnboardingPlan = "trial" | StarPlanId;
 
 export const CATEGORIES: {
   id: MasterCategory;
@@ -89,33 +105,95 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const [location, setLocation] = useState("");
   const [tone, setTone] = useState<AiTone>("friendly");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<OnboardingPlan>("trial");
+  const [paymentMessage, setPaymentMessage] = useState<string | null>(null);
 
   const next = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS));
   const back = () => setStep((s) => Math.max(s - 1, 1));
+
+  const submitOnboarding = async (skipTrial: boolean) => {
+    const payload: OnboardingPayload = {
+      telegram_id: userId!,
+      username,
+      business_name: businessName.trim(),
+      category: category!,
+      location: location.trim() || null,
+      tone,
+      logo_url: logoUrl,
+      skip_trial: skipTrial,
+    };
+
+    await apiFetch<{ success: boolean }>("/api/onboarding", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  };
+
+  const openInvoice = (invoiceLink: string) => {
+    const tg = window.Telegram?.WebApp;
+    if (typeof tg?.openTelegramLink === "function") {
+      tg.openTelegramLink(invoiceLink);
+    } else if (typeof tg?.openLink === "function") {
+      tg.openLink(invoiceLink);
+    } else {
+      window.open(invoiceLink, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const waitForPayment = async (): Promise<boolean> => {
+    for (let attempt = 0; attempt < 24; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      try {
+        const data = await apiFetch<{ master: MasterWithMeta | null }>(
+          "/api/masters/me",
+        );
+        if (hasPaidSubscriptionActive(data.master?.subscription ?? null)) {
+          return true;
+        }
+      } catch {
+        // продовжуємо очікування
+      }
+    }
+    return false;
+  };
 
   const finishOnboarding = async () => {
     if (!userId || !category) return;
 
     setLoading(true);
     setError(null);
+    setPaymentMessage(null);
 
     try {
-      const payload: OnboardingPayload = {
-        telegram_id: userId,
-        username,
-        business_name: businessName.trim(),
-        category,
-        location: location.trim() || null,
-        tone,
-        logo_url: logoUrl,
-      };
+      if (selectedPlan === "trial") {
+        await submitOnboarding(false);
+        setDone(true);
+        return;
+      }
 
-      await apiFetch<{ success: boolean }>("/api/onboarding", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      await submitOnboarding(true);
 
-      setDone(true);
+      const invoiceData = await apiFetch<{ invoiceLink: string }>(
+        "/api/stars/create-invoice",
+        {
+          method: "POST",
+          body: JSON.stringify({ plan: selectedPlan }),
+        },
+      );
+
+      openInvoice(invoiceData.invoiceLink);
+      setPaymentMessage(
+        "Відкрито вікно оплати. Зачекайте підтвердження…",
+      );
+
+      const paid = await waitForPayment();
+      if (paid) {
+        setDone(true);
+      } else {
+        setPaymentMessage(
+          "Оплату ще не підтверджено. Спробуйте ще раз або оберіть пробний період.",
+        );
+      }
     } catch (err) {
       console.error("[OnboardingWizard]", err);
       setError(err instanceof Error ? err.message : "Помилка збереження");
@@ -356,15 +434,113 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             <Button variant="outline" className="flex-1" onClick={back}>
               Назад
             </Button>
+            <Button className="flex-1" onClick={next}>
+              Далі
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {step === 7 && (
+        <div className="space-y-3 animate-in fade-in">
+          <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            Оберіть тариф
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setSelectedPlan("trial")}
+            className={cn(
+              "w-full rounded-2xl border p-4 text-left transition-all",
+              selectedPlan === "trial"
+                ? "border-foreground bg-foreground text-white shadow-sm"
+                : "border-border/60 bg-secondary hover:shadow-md",
+            )}
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-background">
+                <Gift className="h-6 w-6 text-foreground" strokeWidth={1.5} />
+              </div>
+              <div>
+                <p className="font-medium">Тріал 7 днів</p>
+                <p
+                  className={cn(
+                    "text-sm text-muted-foreground",
+                    selectedPlan === "trial" && "text-white/80",
+                  )}
+                >
+                  Безкоштовно — спробуйте всі можливості
+                </p>
+              </div>
+            </div>
+          </button>
+
+          {(Object.keys(STAR_PLAN_PRICES) as StarPlanId[]).map((planId) => {
+            const plan = STAR_PLAN_PRICES[planId];
+            const selected = selectedPlan === planId;
+            return (
+              <button
+                key={planId}
+                type="button"
+                onClick={() => setSelectedPlan(planId)}
+                className={cn(
+                  "w-full rounded-2xl border p-4 text-left transition-all",
+                  selected
+                    ? "border-foreground bg-foreground text-white shadow-sm"
+                    : "border-border/60 bg-secondary hover:shadow-md",
+                )}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-background">
+                    <Star className="h-6 w-6 fill-amber-400 text-amber-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium">
+                      {plan.cardLabel} — {plan.amount}{" "}
+                      <Star className="inline h-4 w-4 fill-amber-400 text-amber-400" />
+                    </p>
+                    <p
+                      className={cn(
+                        "text-sm text-muted-foreground",
+                        selected && "text-white/80",
+                      )}
+                    >
+                      {plan.description}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+
+          {paymentMessage && (
+            <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
+              {paymentMessage}
+            </p>
+          )}
+
+          <div className="flex gap-3 pt-4">
+            <Button variant="outline" className="flex-1" onClick={back}>
+              Назад
+            </Button>
             <Button
               className="flex-1"
               disabled={loading}
               onClick={finishOnboarding}
             >
-              {loading ? "Збереження…" : "Завершити"}
+              {loading ? (
+                <>
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                  {selectedPlan === "trial" ? "Збереження…" : "Очікування оплати…"}
+                </>
+              ) : selectedPlan === "trial" ? (
+                "Завершити"
+              ) : (
+                `Оплатити ${STAR_PLAN_PRICES[selectedPlan].amount} Stars`
+              )}
             </Button>
           </div>
-        </Card>
+        </div>
       )}
     </div>
   );

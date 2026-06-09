@@ -48,6 +48,7 @@ export async function POST(request: Request) {
       location: body.location?.trim() || null,
       tone: body.tone,
       logo_url: body.logo_url ?? null,
+      skip_trial: body.skip_trial === true,
     });
 
     return NextResponse.json({ success: true });

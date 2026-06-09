@@ -62,6 +62,7 @@ export async function sendBookingCreated(
   booking: BookingWithService,
   customer: Pick<Customer, "telegram_id" | "name"> | { telegram_id?: number | null },
   master: Pick<Master, "business_name" | "timezone">,
+  options?: { confirmedByMaster?: boolean },
 ): Promise<void> {
   const telegramId = resolveTelegramId(booking, customer);
   if (!telegramId) return;
@@ -69,9 +70,10 @@ export async function sendBookingCreated(
   const timeZone = master.timezone ?? "Europe/Kyiv";
   const { serviceName, dateTime } = formatBookingDetails(booking, timeZone);
 
-  const text =
-    `📝 Ви створили запис на ${serviceName} ${dateTime}. ` +
-    `Очікуйте підтвердження від майстра.`;
+  const text = options?.confirmedByMaster
+    ? `✅ Ваш запис підтверджено майстром!\n\nДеталі: ${serviceName}, ${dateTime}.`
+    : `📝 Ви створили запис на ${serviceName} ${dateTime}. ` +
+      `Очікуйте підтвердження від майстра.`;
 
   await sendTelegramMessage(telegramId, text);
 }

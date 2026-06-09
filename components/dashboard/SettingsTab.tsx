@@ -30,6 +30,11 @@ import type {
   WorkingHours,
 } from "@/types";
 import {
+  getDetailedSubscriptionStatusLabel,
+  getSubscriptionEndDate,
+  isSubscriptionActive,
+} from "@/lib/subscription";
+import {
   Check,
   ChevronDown,
   ChevronUp,
@@ -73,6 +78,8 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
   const [socialTiktok, setSocialTiktok] = useState("");
   const [socialFacebook, setSocialFacebook] = useState("");
   const [socialTelegram, setSocialTelegram] = useState("");
+  const [socialYoutube, setSocialYoutube] = useState("");
+  const [socialWebsite, setSocialWebsite] = useState("");
 
   const [checkingSlug, setCheckingSlug] = useState(false);
   const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
@@ -96,10 +103,24 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
     setSocialTiktok(social.tiktok);
     setSocialFacebook(social.facebook);
     setSocialTelegram(social.telegram);
+    setSocialYoutube(social.youtube);
+    setSocialWebsite(social.website);
     setServicesLayout(master.services_layout ?? "list");
   }, [master]);
 
   const clientLink = getClientStartAppLink(master);
+
+  const subscription = master.subscription;
+  const subscriptionActive = isSubscriptionActive(subscription);
+  const subscriptionStatusLabel = getDetailedSubscriptionStatusLabel(subscription);
+  const subscriptionEndDate = getSubscriptionEndDate(subscription);
+
+  const formatUkDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("uk-UA", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
 
   const saveTone = async (newTone: AiTone) => {
     setTone(newTone);
@@ -194,6 +215,8 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
             tiktok: socialTiktok,
             facebook: socialFacebook,
             telegram: socialTelegram,
+            youtube: socialYoutube,
+            website: socialWebsite,
           }),
         }),
       });
@@ -248,13 +271,21 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
         <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           Підписка та оплата
         </p>
-        <p className="text-xs text-zinc-500">
-          Керуйте підпискою та оплатою через Telegram Stars
-        </p>
+        <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-3 dark:border-zinc-800 dark:bg-zinc-900/50">
+          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+            {subscriptionStatusLabel}
+          </p>
+          {subscriptionEndDate && (
+            <p className="mt-1 text-xs text-zinc-500">
+              {subscriptionActive ? "Діє до" : "Закінчилась"}{" "}
+              {formatUkDate(subscriptionEndDate)}
+            </p>
+          )}
+        </div>
         <Link href="/settings/payment">
           <Button variant="outline" className="w-full">
             <CreditCard className="h-4 w-4" />
-            Підписка та оплата
+            {subscriptionActive ? "Продовжити" : "Оплатити"}
           </Button>
         </Link>
       </Card>
@@ -477,6 +508,16 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
                   placeholder="Telegram"
                   value={socialTelegram}
                   onChange={(e) => setSocialTelegram(e.target.value)}
+                />
+                <Input
+                  placeholder="YouTube"
+                  value={socialYoutube}
+                  onChange={(e) => setSocialYoutube(e.target.value)}
+                />
+                <Input
+                  placeholder="Веб-сайт"
+                  value={socialWebsite}
+                  onChange={(e) => setSocialWebsite(e.target.value)}
                 />
               </div>
             </div>

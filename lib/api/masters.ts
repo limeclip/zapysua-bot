@@ -176,6 +176,7 @@ export async function completeOnboarding(params: {
   location?: string | null;
   tone: string;
   logo_url?: string | null;
+  skip_trial?: boolean;
 }): Promise<Master> {
   let master = await getMasterByTelegramId(params.telegram_id);
 
@@ -240,7 +241,7 @@ export async function completeOnboarding(params: {
     .limit(1)
     .maybeSingle();
 
-  if (!existingSub) {
+  if (!existingSub && !params.skip_trial) {
     const trialStart = new Date();
     const trialEnd = new Date();
     trialEnd.setDate(trialEnd.getDate() + 7);

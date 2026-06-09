@@ -11,7 +11,14 @@ export function parseSocialLinksInput(
   input: Record<string, string>,
 ): SocialLinks {
   const result: SocialLinks = {};
-  for (const key of ["instagram", "tiktok", "facebook", "telegram"] as const) {
+  for (const key of [
+    "instagram",
+    "tiktok",
+    "facebook",
+    "telegram",
+    "youtube",
+    "website",
+  ] as const) {
     const raw = input[key]?.trim();
     if (raw) result[key] = normalizeSocialUrl(raw);
   }
@@ -26,5 +33,7 @@ export function socialLinksToForm(
     tiktok: links?.tiktok ?? "",
     facebook: links?.facebook ?? "",
     telegram: links?.telegram ?? "",
+    youtube: links?.youtube ?? "",
+    website: links?.website ?? "",
   };
 }

@@ -65,10 +65,16 @@ export function ClientBookContent({ slug }: ClientBookContentProps) {
   const [error, setError] = useState<string | null>(null);
 
   const [viewMonth, setViewMonth] = useState(() => new Date());
+  const [showAllServices, setShowAllServices] = useState(false);
 
   const timeZone = profile?.timezone ?? "Europe/Kyiv";
   const selectedService = profile?.services.find((s) => s.id === serviceId);
   const todayKey = formatDateKey(new Date(), timeZone);
+  const visibleServices =
+    profile && !showAllServices
+      ? profile.services.slice(0, 4)
+      : (profile?.services ?? []);
+  const hasMoreServices = (profile?.services.length ?? 0) > 4;
 
   useEffect(() => {
     let cancelled = false;
@@ -260,7 +266,7 @@ export function ClientBookContent({ slug }: ClientBookContentProps) {
           1. Послуга
         </h2>
         <ul className="space-y-2">
-          {profile.services.map((service) => {
+          {visibleServices.map((service) => {
             const selected = service.id === serviceId;
             return (
               <button
@@ -300,6 +306,16 @@ export function ClientBookContent({ slug }: ClientBookContentProps) {
             );
           })}
         </ul>
+        {hasMoreServices && (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => setShowAllServices((prev) => !prev)}
+          >
+            {showAllServices ? "Сховати" : "Показати всі"}
+          </Button>
+        )}
       </section>
 
       {serviceId && (

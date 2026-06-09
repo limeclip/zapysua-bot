@@ -9,13 +9,16 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { formatTime } from "@/lib/dates";
+import { cn } from "@/lib/utils";
 import type {
+  BookingSlot,
   BookingWithService,
   CustomerWithStats,
   MasterWithMeta,
   Service,
 } from "@/types";
-import { LoaderCircle, X } from "lucide-react";
+import { Clock, LoaderCircle, X } from "lucide-react";
 
 type CreateBookingModalProps = {
   master: MasterWithMeta;
@@ -71,7 +74,12 @@ export function CreateBookingModal({
   const [selectedCustomerTelegramId, setSelectedCustomerTelegramId] = useState<
     number | null
   >(null);
+  const [freeSlots, setFreeSlots] = useState<BookingSlot[]>([]);
+  const [freeSlotsLoading, setFreeSlotsLoading] = useState(false);
+  const [showFreeSlots, setShowFreeSlots] = useState(false);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  const timeZone = master.timezone || "Europe/Kyiv";
 
   const searchQuery = getSearchQuery(clientName, clientPhone);
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -154,6 +162,36 @@ export function CreateBookingModal({
   }, [showSuggestions]);
 
   const selectedService = services.find((s) => s.id === serviceId);
+
+  const bookingDate = bookingStart ? bookingStart.slice(0, 10) : "";
+
+  const loadFreeSlots = async () => {
+    if (!serviceId || !bookingDate) {
+      setError("Оберіть послугу та дату");
+      return;
+    }
+
+    setFreeSlotsLoading(true);
+    setShowFreeSlots(true);
+    setError(null);
+
+    try {
+      const data = await apiFetch<{ slots: BookingSlot[] }>(
+        `/api/slots?date=${encodeURIComponent(bookingDate)}&service_id=${encodeURIComponent(serviceId)}`,
+      );
+      setFreeSlots(data.slots ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Помилка завантаження слотів");
+      setFreeSlots([]);
+    } finally {
+      setFreeSlotsLoading(false);
+    }
+  };
+
+  const handleSelectSlot = (slot: BookingSlot) => {
+    const start = new Date(slot.start);
+    setBookingStart(toDatetimeLocalValue(start));
+  };
 
   const handleSelectCustomer = (customer: CustomerWithStats) => {
     setClientName(customer.name);
@@ -339,12 +377,63 @@ export function CreateBookingModal({
             <Input
               type="datetime-local"
               value={bookingStart}
-              onChange={(e) => setBookingStart(e.target.value)}
+              onChange={(e) => {
+                setBookingStart(e.target.value);
+                setShowFreeSlots(false);
+                setFreeSlots([]);
+              }}
             />
             {selectedService && (
               <p className="text-xs text-zinc-400">
                 Тривалість: {selectedService.duration_minutes} хв
               </p>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-2 w-full"
+              disabled={!serviceId || !bookingDate || freeSlotsLoading}
+              onClick={loadFreeSlots}
+            >
+              {freeSlotsLoading ? (
+                <LoaderCircle className="h-4 w-4 animate-spin" />
+              ) : (
+                <Clock className="h-4 w-4" />
+              )}
+              Перевірити вільний час
+            </Button>
+            {showFreeSlots && (
+              <div className="mt-2 space-y-2">
+                {freeSlotsLoading ? (
+                  <div className="flex justify-center py-2">
+                    <LoaderCircle className="h-5 w-5 animate-spin text-zinc-400" />
+                  </div>
+                ) : freeSlots.length === 0 ? (
+                  <p className="text-center text-xs text-zinc-500">
+                    Немає вільних слотів на цю дату
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    {freeSlots.map((slot) => (
+                      <button
+                        key={slot.start}
+                        type="button"
+                        onClick={() => handleSelectSlot(slot)}
+                        className={cn(
+                          "rounded-xl border px-2 py-2 text-sm transition-all",
+                          bookingStart &&
+                            new Date(bookingStart).toISOString() ===
+                              new Date(slot.start).toISOString()
+                            ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                            : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-700",
+                        )}
+                      >
+                        {formatTime(slot.start, timeZone)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 

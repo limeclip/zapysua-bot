@@ -45,3 +45,30 @@ export function getSubscriptionStatusLabel(
   if (subscription.status === "cancelled") return "Скасована";
   return "Підписка закінчилась";
 }
+
+export function getDetailedSubscriptionStatusLabel(
+  subscription: MasterWithMeta["subscription"],
+): string {
+  if (!subscription) return "Немає підписки";
+
+  if (isSubscriptionActive(subscription)) {
+    if (subscription.status === "trial") return "Пробний період";
+    if (subscription.plan_type === "monthly") return "Активна підписка (місяць)";
+    if (subscription.plan_type === "yearly") return "Активна підписка (рік)";
+    return "Активна підписка";
+  }
+
+  if (subscription.status === "cancelled") return "Скасована";
+  return "Підписка закінчилась";
+}
+
+export function getSubscriptionEndDate(
+  subscription: MasterWithMeta["subscription"],
+): string | null {
+  if (!subscription) return null;
+  if (subscription.status === "trial") return subscription.trial_end_date ?? null;
+  if (subscription.status === "active") {
+    return subscription.subscription_end_date ?? null;
+  }
+  return subscription.subscription_end_date ?? subscription.trial_end_date ?? null;
+}

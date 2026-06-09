@@ -14,6 +14,7 @@ import {
   formatDateKey,
   formatDateLong,
   formatMonthYear,
+  formatTime,
   getCalendarGrid,
   startOfMonth,
   toIsoRangeEnd,
@@ -24,8 +25,8 @@ import {
   parseWorkingHours,
 } from "@/lib/working-hours";
 import { cn } from "@/lib/utils";
-import type { BookingWithService, MasterWithMeta } from "@/types";
-import { ChevronLeft, ChevronRight, Clock, Plus, X } from "lucide-react";
+import type { BookingSlot, BookingWithService, MasterWithMeta, Service } from "@/types";
+import { ChevronLeft, ChevronRight, Clock, LoaderCircle, Plus, X } from "lucide-react";
 import Link from "next/link";
 
 type CalendarViewProps = {
@@ -44,6 +45,11 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [showFreeSlots, setShowFreeSlots] = useState(false);
+  const [freeSlots, setFreeSlots] = useState<BookingSlot[]>([]);
+  const [freeSlotsLoading, setFreeSlotsLoading] = useState(false);
+  const [freeSlotsServiceId, setFreeSlotsServiceId] = useState<string | null>(null);
+  const [services, setServices] = useState<Service[]>([]);
 
   const loadMonth = useCallback(async () => {
     try {
@@ -113,6 +119,42 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
           new Date(b.booking_start).getTime(),
       ),
     );
+  };
+
+  const loadFreeSlots = async (day: string, serviceIdOverride?: string) => {
+    setShowFreeSlots(true);
+    setFreeSlotsLoading(true);
+    setFreeSlots([]);
+
+    try {
+      let serviceId = serviceIdOverride ?? freeSlotsServiceId;
+      if (!serviceId) {
+        const data = await apiFetch<{ services: Service[] }>("/api/services");
+        setServices(data.services);
+        serviceId = data.services[0]?.id ?? null;
+        if (serviceId) setFreeSlotsServiceId(serviceId);
+      }
+
+      if (!serviceId) {
+        setFreeSlots([]);
+        return;
+      }
+
+      const slotsData = await apiFetch<{ slots: BookingSlot[] }>(
+        `/api/slots?date=${encodeURIComponent(day)}&service_id=${encodeURIComponent(serviceId)}`,
+      );
+      setFreeSlots(slotsData.slots ?? []);
+    } catch {
+      setFreeSlots([]);
+    } finally {
+      setFreeSlotsLoading(false);
+    }
+  };
+
+  const handleDaySelect = (key: string) => {
+    setSelectedDay(key);
+    setShowFreeSlots(false);
+    setFreeSlots([]);
   };
 
   if (!hoursConfigured) {
@@ -216,7 +258,7 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
                 <button
                   key={key}
                   type="button"
-                  onClick={() => setSelectedDay(key)}
+                  onClick={() => handleDaySelect(key)}
                   className={cn(
                     "relative flex aspect-square flex-col items-center justify-center rounded-xl text-sm transition-colors",
                     isSelected
@@ -278,11 +320,68 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
                 compact
                 contextDay={selectedDay}
               />
+
+              {showFreeSlots && (
+                <div className="mt-4 space-y-2 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+                  <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    Вільний час
+                  </p>
+                  {services.length > 1 && freeSlotsServiceId && (
+                    <select
+                      value={freeSlotsServiceId}
+                      onChange={(e) => {
+                        const newId = e.target.value;
+                        setFreeSlotsServiceId(newId);
+                        loadFreeSlots(selectedDay, newId);
+                      }}
+                      className="h-10 w-full rounded-lg border border-zinc-200 bg-transparent px-2 text-sm dark:border-zinc-700"
+                    >
+                      {services.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {freeSlotsLoading ? (
+                    <div className="flex justify-center py-4">
+                      <LoaderCircle className="h-5 w-5 animate-spin text-zinc-400" />
+                    </div>
+                  ) : freeSlots.length === 0 ? (
+                    <p className="py-2 text-center text-sm text-zinc-500">
+                      Немає вільних слотів на цей день
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2">
+                      {freeSlots.map((slot) => (
+                        <span
+                          key={slot.start}
+                          className="rounded-xl border border-zinc-200 px-2 py-2 text-center text-sm dark:border-zinc-700"
+                        >
+                          {formatTime(slot.start, timeZone)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <Button
               variant="outline"
               className="mt-4 w-full shrink-0"
-              onClick={() => setSelectedDay(null)}
+              onClick={() => loadFreeSlots(selectedDay)}
+            >
+              <Clock className="h-4 w-4" />
+              Вільний час
+            </Button>
+            <Button
+              variant="outline"
+              className="mt-2 w-full shrink-0"
+              onClick={() => {
+                setSelectedDay(null);
+                setShowFreeSlots(false);
+                setFreeSlots([]);
+              }}
             >
               Закрити
             </Button>

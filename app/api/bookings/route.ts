@@ -270,6 +270,7 @@ export async function POST(request: Request): Promise<NextResponse> {
             business_name: masterInfo?.business_name ?? "",
             timezone: masterInfo?.timezone ?? "Europe/Kyiv",
           },
+          { confirmedByMaster: isMasterBooking && status === "confirmed" },
         );
       } catch (notifyError) {
         console.error("[api/bookings POST] notification:", notifyError);
