@@ -5,10 +5,12 @@ import {
   badRequest,
   requireMasterWithSubscription,
   serverError,
+  subscriptionRequired,
 } from "@/lib/api/response";
 import { normalizeUaPhone } from "@/lib/phone";
 import { getTelegramUserFromRequest } from "@/lib/telegram/auth";
 import { sendBookingCreated } from "@/lib/notifications";
+import { isMasterSubscriptionActive } from "@/lib/subscription-server";
 import { getOrCreateCustomerByPhone } from "@/lib/supabaseClient";
 import type { BookingStatus, BookingWithService } from "@/types";
 
@@ -96,7 +98,7 @@ async function createBooking(params: {
   return data;
 }
 
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<NextResponse> {
   try {
     const body = await request.json();
     const clientName = String(body.client_name ?? "").trim();
@@ -135,12 +137,26 @@ export async function POST(request: Request) {
     const bodyMasterId = body.master_id as string | undefined;
     const isMasterBooking = !("error" in authResult) && !bodyMasterId;
 
-    const masterId = isMasterBooking
-      ? authResult.master.id
-      : bodyMasterId;
+    let masterId: string | undefined;
+
+    if (isMasterBooking) {
+      if ("error" in authResult) {
+        return authResult.error as NextResponse;
+      }
+      masterId = authResult.master.id;
+    } else {
+      masterId = bodyMasterId;
+    }
 
     if (!masterId) {
       return badRequest("master_id обов'язковий");
+    }
+
+    if (!isMasterBooking) {
+      const subscriptionActive = await isMasterSubscriptionActive(masterId);
+      if (!subscriptionActive) {
+        return subscriptionRequired();
+      }
     }
 
     const status: BookingStatus = isMasterBooking

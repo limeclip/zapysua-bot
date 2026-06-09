@@ -27,7 +27,7 @@ export function SubscriptionGate({
       <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">
         Оформіть підписку, щоб керувати записами та статистикою.
       </p>
-      <Link href="/payment">
+      <Link href="/settings/payment">
         <Button className="w-full">Перейти до оплати</Button>
       </Link>
     </Card>

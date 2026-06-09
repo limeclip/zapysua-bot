@@ -6,7 +6,7 @@ import {
 } from "@/lib/customers-server";
 import {
   badRequest,
-  requireMaster,
+  requireMasterWithSubscription,
   requireTelegramUser,
   serverError,
 } from "@/lib/api/response";
@@ -17,7 +17,7 @@ const MAX_LIMIT = 100;
 
 export async function GET(request: Request) {
   try {
-    const authResult = await requireMaster(request);
+    const authResult = await requireMasterWithSubscription(request);
     if ("error" in authResult) return authResult.error;
 
     const { searchParams } = new URL(request.url);

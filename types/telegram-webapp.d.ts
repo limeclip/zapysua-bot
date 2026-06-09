@@ -15,6 +15,8 @@ interface TelegramWebAppInitData {
 }
 
 interface TelegramWebApp {
+  openLink?: (url: string) => void;
+  openTelegramLink?: (url: string) => void;
   ready: () => void;
   expand: () => void;
   close: () => void;

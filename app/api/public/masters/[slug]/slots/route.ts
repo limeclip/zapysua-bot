@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPublicMasterProfile } from "@/lib/api/public-masters";
-import { badRequest, serverError } from "@/lib/api/response";
+import { badRequest, serverError, subscriptionRequired } from "@/lib/api/response";
+import { isMasterSubscriptionActive } from "@/lib/subscription-server";
 import { getAvailableSlots } from "@/lib/supabaseClient";
 
 type RouteContext = { params: Promise<{ slug: string }> };
@@ -30,6 +31,11 @@ export async function GET(request: Request, context: RouteContext) {
     const service = profile.services.find((s) => s.id === serviceId);
     if (!service) {
       return badRequest("Послугу не знайдено");
+    }
+
+    const subscriptionActive = await isMasterSubscriptionActive(profile.id);
+    if (!subscriptionActive) {
+      return subscriptionRequired();
     }
 
     const slots = await getAvailableSlots(profile.id, date, undefined, {

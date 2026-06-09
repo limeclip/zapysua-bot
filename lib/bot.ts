@@ -7,6 +7,7 @@ import {
   needsOnboarding,
   hasAiSettings,
 } from "@/lib/supabaseClient";
+import { registerPaymentHandlers } from "@/lib/bot-payments";
 import type { BotContext, Master } from "@/types";
 
 function getBotToken(): string {
@@ -152,3 +153,5 @@ const masterMiddleware: MiddlewareFn<BotContext> = async (ctx, next) => {
 };
 
 bot.use(masterMiddleware);
+
+registerPaymentHandlers(bot);

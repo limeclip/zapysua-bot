@@ -1,4 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
+import {
+  syncSubscriptionExpiry,
+  type SubscriptionRecord,
+} from "@/lib/subscription-server";
 import { generateDefaultSlug } from "@/lib/slug";
 import type { AiSettings, Master, MasterWithMeta, Service } from "@/types";
 
@@ -103,13 +107,22 @@ export async function getMasterWithMeta(
     .eq("master_id", master.id)
     .maybeSingle();
 
-  const { data: subscription } = await supabaseAdmin
+  const { data: subscriptionRaw } = await supabaseAdmin
     .from("subscriptions")
-    .select("status, plan_type, trial_end_date")
+    .select(
+      "status, plan_type, trial_end_date, subscription_start_date, subscription_end_date, last_payment_amount, last_payment_date",
+    )
     .eq("master_id", master.id)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+
+  let subscription = subscriptionRaw;
+  if (subscriptionRaw) {
+    subscription = await syncSubscriptionExpiry(
+      subscriptionRaw as SubscriptionRecord,
+    );
+  }
 
   return {
     ...master,

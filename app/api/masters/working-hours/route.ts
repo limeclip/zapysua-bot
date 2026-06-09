@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import {
   badRequest,
-  requireMaster,
+  requireMasterWithSubscription,
   serverError,
 } from "@/lib/api/response";
 import type { WorkingHours } from "@/types";
 
 export async function PATCH(request: Request) {
   try {
-    const authResult = await requireMaster(request);
+    const authResult = await requireMasterWithSubscription(request);
     if ("error" in authResult) return authResult.error;
 
     const body = await request.json();

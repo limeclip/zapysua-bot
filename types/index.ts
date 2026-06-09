@@ -163,6 +163,10 @@ export type MasterWithMeta = Master & {
     status: string;
     plan_type: string;
     trial_end_date: string | null;
+    subscription_start_date?: string | null;
+    subscription_end_date?: string | null;
+    last_payment_amount?: number | null;
+    last_payment_date?: string | null;
   } | null;
   is_onboarded: boolean;
 };

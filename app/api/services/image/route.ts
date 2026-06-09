@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import {
-  requireMaster,
+  requireMasterWithSubscription,
   serverError,
 } from "@/lib/api/response";
 
@@ -10,7 +10,7 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 export async function POST(request: Request) {
   try {
-    const authResult = await requireMaster(request);
+    const authResult = await requireMasterWithSubscription(request);
     if ("error" in authResult) return authResult.error;
 
     const formData = await request.formData();

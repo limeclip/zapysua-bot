@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCustomerBookings } from "@/lib/customers-server";
 import {
-  requireMaster,
+  requireMasterWithSubscription,
   serverError,
 } from "@/lib/api/response";
 import { supabaseAdmin } from "@/lib/supabase/server";
@@ -11,7 +11,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(request: Request, context: RouteContext) {
   try {
-    const authResult = await requireMaster(request);
+    const authResult = await requireMasterWithSubscription(request);
     if ("error" in authResult) return authResult.error;
 
     const { id } = await context.params;

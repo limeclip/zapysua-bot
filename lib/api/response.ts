@@ -23,7 +23,10 @@ export function serverError(message = "Внутрішня помилка сер�
 
 export function subscriptionRequired() {
   return NextResponse.json(
-    { error: "Потрібна активна підписка", code: "subscription_required" },
+    {
+      error: "Підписка закінчилась. Оплатіть доступ.",
+      code: "subscription_required",
+    },
     { status: 403 },
   );
 }

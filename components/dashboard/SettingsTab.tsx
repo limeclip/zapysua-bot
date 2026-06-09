@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { apiFetch } from "@/lib/api/client";
 import { getClientStartAppLink } from "@/lib/referral";
 import {
@@ -28,7 +29,15 @@ import type {
   ServicesLayout,
   WorkingHours,
 } from "@/types";
-import { Check, ChevronDown, ChevronUp, Eye, LinkIcon, LoaderCircle } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  CreditCard,
+  Eye,
+  LinkIcon,
+  LoaderCircle,
+} from "lucide-react";
 import { Checkbox } from "../ui/checkbox";
 
 const TONE_OPTIONS: { value: AiTone; label: string }[] = [
@@ -234,6 +243,22 @@ export function SettingsTab({ master, onMasterUpdate }: SettingsTabProps) {
       {message && (
         <p className="text-sm text-zinc-500">{message}</p>
       )}
+
+      <Card className="space-y-3">
+        <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          Підписка та оплата
+        </p>
+        <p className="text-xs text-zinc-500">
+          Керуйте підпискою та оплатою через Telegram Stars
+        </p>
+        <Link href="/settings/payment">
+          <Button variant="outline" className="w-full">
+            <CreditCard className="h-4 w-4" />
+            Підписка та оплата
+          </Button>
+        </Link>
+      </Card>
+
       {/*  Логотип */}
       <Card className="space-y-3">
         <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
