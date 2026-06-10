@@ -8,7 +8,6 @@ function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
-
   const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
@@ -16,7 +15,6 @@ function HomeContent() {
 
     async function init() {
       try {
-        // INIT TELEGRAM
         if (tg) {
           tg.ready();
           tg.expand();
@@ -32,88 +30,65 @@ function HomeContent() {
           searchParams.get("startapp")?.trim() ||
           searchParams.get("tgWebAppStartParam")?.trim() ||
           null;
-        const tgStartParam =
-          tg?.initDataUnsafe?.start_param?.trim() || null;
+        const tgStartParam = tg?.initDataUnsafe?.start_param?.trim() || null;
         const startParam = urlStartParam || tgStartParam;
 
         console.log("[MiniApp] startapp from URL:", urlStartParam);
         console.log("[MiniApp] start_param from Telegram:", tgStartParam);
         console.log("[MiniApp] final start param:", startParam);
 
-        /**
-         * TELEGRAM SOMETIMES NEEDS DELAY
-         */
         await new Promise((resolve) => setTimeout(resolve, 500));
 
-        if (startParam === 'account') {
-          console.log('[MiniApp] Redirecting to /client/account');
+        if (startParam === "account") {
+          console.log("[MiniApp] Redirecting to /client/account");
           startTransition(() => {
             setIsRedirecting(true);
-            router.replace('/client/account');
+            router.replace("/client/account");
           });
           return;
         }
 
-        if (startParam === 'master') {
-          console.log('[MiniApp] Redirecting to master dashboard (home)');
+        if (startParam === "master") {
+          console.log("[MiniApp] Redirecting to master dashboard (home)");
           startTransition(() => {
             setIsRedirecting(true);
-            router.replace('/'); // або '/dashboard'
+            router.replace("/");
           });
           return;
         }
-        
 
-        /**
-         * REDIRECT
-         */
         if (startParam) {
-          console.log(
-            `[MiniApp] Redirecting to /client/${startParam}`
-          );
-
+          console.log(`[MiniApp] Redirecting to /client/${startParam}`);
           startTransition(() => {
             setIsRedirecting(true);
-
             router.replace(`/client/${startParam}`);
           });
-
           return;
         }
 
-        console.log("[MiniApp] start_param NOT FOUND");
-
+        // Якщо параметра немає – показуємо звичайний інтерфейс
+        console.log("[MiniApp] No start_param, showing MiniAppShell");
+        setIsRedirecting(false);
       } catch (error) {
         console.error("[MiniApp] ERROR:", error);
+        setIsRedirecting(false);
       }
     }
 
     init();
-
   }, [router, searchParams, startTransition]);
 
-  /**
-   * LOADER
-   */
   if (isRedirecting) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-
           <div className="mb-3 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-600 dark:border-t-zinc-300" />
-
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Завантаження...
-          </p>
-
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">Завантаження...</p>
         </div>
       </div>
     );
   }
 
-  /**
-   * DEFAULT PAGE
-   */
   return <MiniAppShell />;
 }
 

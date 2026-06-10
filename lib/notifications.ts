@@ -122,7 +122,7 @@ export async function notifyMasterNewBooking(params: NotifyContext): Promise<voi
     `📝 *Новий запис*\n\n` +
     `Клієнт *${clientName}* записався на *${safeService}*, ${dateTime}.\n\n` +
     `Будь ласка, підтвердіть або скасуйте запис у кабінеті.\n\n` +
-    `👉 [Відкрити кабінет](${dashboardLink})` +
+    `👉 [Відкрити кабінет](${dashboardLink})\n\n` +
     SIGNATURE;
 
   await sendTelegramMessage(params.master.telegram_id, text);
