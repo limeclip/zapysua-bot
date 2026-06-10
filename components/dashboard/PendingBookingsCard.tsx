@@ -57,7 +57,7 @@ export function PendingBookingsCard({
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-            ✉️ {count}{" "}
+             {count}{" "}
             {count === 1
               ? "запис очікує"
               : count < 5

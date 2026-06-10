@@ -111,13 +111,10 @@ export function HomeTab({ master, onNavigateTab }: HomeTabProps) {
         <div className="h-screen  w-full flex bg-linear-to-br  from-transparent from-10% via-[#6ca6fc]/10 dark:via-[#556a7d]/20 via-30%
          to-[#ffd75e]/10 dark:to-[#625c42]/20 to-90% animate-gradient-x"  />
       </div> */}
-      <div className="">
-        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-          Вітаємо, {master.business_name}
-        </h2>
+      <div className="-mt-2">
         <div className="flex items-center justify-between">
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Огляд вашого тижня
+          Вітаємо.  Огляд вашого тижня
           </p>
           <p className="text-sm text-zinc-500">
             {new Date().toLocaleDateString("uk-UA", {
@@ -133,11 +130,7 @@ export function HomeTab({ master, onNavigateTab }: HomeTabProps) {
       <SubscriptionGate master={master}>
         {error && <ApiErrorState message={error} onRetry={load} />}
 
-        <PendingBookingsCard
-          master={master}
-          onView={() => onNavigateTab("bookings", { showPending: true })}
-        />
-
+       
         <WeekCalendar
           master={master}
           weekBookings={weekBookings}
@@ -166,6 +159,10 @@ export function HomeTab({ master, onNavigateTab }: HomeTabProps) {
               </Link>
             </div>
 
+            <PendingBookingsCard
+          master={master}
+          onView={() => onNavigateTab("bookings", { showPending: true })}
+        />
 
 
             {weekStats && (

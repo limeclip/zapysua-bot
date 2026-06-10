@@ -9,7 +9,7 @@ import { ClientsTab } from "@/components/dashboard/ClientsTab";
 import { StatisticsTab } from "@/components/dashboard/StatisticsTab";
 import { SettingsTab } from "@/components/dashboard/SettingsTab";
 import type { MasterWithMeta } from "@/types";
-import { Bell, Calendar, LinkIcon } from "lucide-react";
+import { Bell, Calendar, LinkIcon, Settings } from "lucide-react";
 import { Button } from "../ui/button";
 import { getClientStartAppLink } from "@/lib/referral";
 import { isSubscriptionActive } from "@/lib/subscription";
@@ -57,15 +57,16 @@ export function DashboardHome({ master, onMasterUpdate }: DashboardHomeProps) {
     }
     setTab(next);
   };
-  
+
 
   return (
-    <div className="mx-auto min-h-screen w-full max-w-lg pb-24 relative overflow-x-hidden">
-      <div className="absolute top-0 right-0 left-0 inset-0 -z-10 -mx-4 dark:hidden">
-        <div className="min-h-screen h-full w-full flex bg-linear-to-br  from-transparent from-10% via-[#6ca6fc]/10 dark:via-[#556a7d]/20 via-30%
-         to-[#ffd75e]/10 dark:to-[#625c42]/20 to-90% animate-gradient-x"  />
+
+    <div className="mx-auto min-h-screen w-full max-w-lg pb-24 relative">
+      <div className="absolute top-0 right-0 left-0 inset-0 -z-10 -mx-4 ">
+        <div className="min-h-screen h-full w-full flex bg-linear-to-br  from-transparent from-10% via-[#6ca6fc]/15 dark:via-[#556a7d]/20 via-30%
+         to-[#ffd75e]/15 dark:to-[#625c42]/20 to-90% animate-gradient-x"  />
       </div>
-      <header className="sticky top-0 z-40 border-0 border-zinc-200/80  px-4 py-3 backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-950/90">
+      <header className="sticky top-0 z-40 border-0 border-zinc-200/80  px-4 py-3 backdrop-blur-xl dark:border-zinc-800">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {master.logo_url ? (
@@ -81,7 +82,7 @@ export function DashboardHome({ master, onMasterUpdate }: DashboardHomeProps) {
               </div>
             )}
             <div>
-              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 line-clamp-1">
                 {master.business_name}
               </p>
               <p className="text-xs text-zinc-500"> ZapysUA</p>
@@ -89,7 +90,7 @@ export function DashboardHome({ master, onMasterUpdate }: DashboardHomeProps) {
           </div>
           {/* Right side */}
           <div className="flex items-center gap-3">
-          <Button
+            <Button
               variant="ghost"
               size="icon"
               onClick={copyLink}
@@ -97,8 +98,13 @@ export function DashboardHome({ master, onMasterUpdate }: DashboardHomeProps) {
             >
               <LinkIcon className="size-5" strokeWidth={1} />
             </Button>
-            <Button variant={"ghost"} size={"icon"}>
-              <Bell className="size-5" strokeWidth={1} />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTab("settings")}
+              title="Налаштування"
+            >
+              <Settings className="size-5" strokeWidth={1} />
             </Button>
           </div>
         </div>
@@ -137,5 +143,6 @@ export function DashboardHome({ master, onMasterUpdate }: DashboardHomeProps) {
         onClose={() => setShowSubscriptionModal(false)}
       />
     </div>
+
   );
 }

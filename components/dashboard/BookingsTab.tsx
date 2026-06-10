@@ -98,15 +98,17 @@ export function BookingsTab({
           </Link>
         </div>
 
-        <PendingBookingsCard
-          master={master}
-          variant="filter"
-          onShowPending={handleShowPending}
-        />
+
 
         <CalendarView
           master={master}
           onOpenSettings={() => onNavigateTab("settings")}
+        />
+
+        <PendingBookingsCard
+          master={master}
+          variant="filter"
+          onShowPending={handleShowPending}
         />
 
         {pendingVisible && (

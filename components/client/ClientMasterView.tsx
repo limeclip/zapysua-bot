@@ -118,14 +118,14 @@ export function ClientMasterView({ profile }: ClientMasterViewProps) {
         <div className="absolute right-0 top-0">
           <div className="flex items-center gap-3">
             <ThemeToggleIcon />
-            {isAuthenticated && (
+            {/* {isAuthenticated && (
               <Button
                 variant="ghost"
                 size="icon"
               >
                 <BellIcon className="size-5" strokeWidth={1} />
               </Button>
-            )}
+            )} */}
           </div>
 
         </div>

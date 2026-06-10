@@ -265,7 +265,7 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
                     isSelected
                       ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
                       : isToday
-                        ? "bg-[#ffd75e] text-foregrond text-lg font-semibold dark:bg-[#ffd75e] dark:text-black "
+                        ? "bg-[#6ca6fc]/30 text-foregrond text-lg font-semibold dark:bg-[#6ca6fc]/30 dark:text-foreground "
                         : "hover:bg-zinc-50 dark:hover:bg-zinc-800/80",
                   )}
                 >
