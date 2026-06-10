@@ -7,7 +7,12 @@ import {
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { BookingWithService } from "@/types";
 
-const BOOKING_SELECT = "*, services(id, name, price)";
+// ⚠️ Изменён SELECT: теперь включает slug мастера через JOIN
+const BOOKING_SELECT = `
+  *,
+  services(id, name, price),
+  masters:master_id(slug, business_name)
+`;
 
 const MS_24H = 24 * 60 * 60 * 1000;
 const MS_2H = 2 * 60 * 60 * 1000;
@@ -73,7 +78,7 @@ export async function processReminders(): Promise<{
 
     if (error) throw error;
 
-    for (const booking of (bookings ?? []) as BookingWithService[]) {
+    for (const booking of (bookings ?? []) as (BookingWithService & { masters?: { slug: string; business_name: string } })[]) {
       const telegramId = booking.client_telegram_id;
       if (!telegramId) continue;
 
@@ -145,7 +150,11 @@ export async function sendThankYouReminder(): Promise<{ sent: number }> {
 
   const { data: bookings, error } = await supabaseAdmin
     .from("bookings")
-    .select(BOOKING_SELECT)
+    .select(`
+      *,
+      services(id, name, price),
+      masters:master_id(slug)
+    `)
     .eq("status", "completed")
     .lte("booking_start", cutoff.toISOString())
     .gte(
@@ -157,14 +166,17 @@ export async function sendThankYouReminder(): Promise<{ sent: number }> {
 
   let sent = 0;
 
-  for (const booking of (bookings ?? []) as BookingWithService[]) {
+  for (const booking of (bookings ?? []) as (BookingWithService & { masters?: { slug: string } })[]) {
     const telegramId = booking.client_telegram_id;
     if (!telegramId) continue;
 
     const alreadySent = await hasNotification(booking.id, "thank_you");
     if (alreadySent) continue;
 
-    const success = await sendThankYouMessage(booking, telegramId);
+    const masterSlug = booking.masters?.slug ?? '';
+    if (!masterSlug) continue;
+
+    const success = await sendThankYouMessage(booking, telegramId, masterSlug);
     if (success) sent++;
   }
 
@@ -184,7 +196,11 @@ export async function processReturningCustomersReminder(): Promise<{
 
   const { data: completedBookings, error } = await supabaseAdmin
     .from("bookings")
-    .select(BOOKING_SELECT)
+    .select(`
+      *,
+      services(id, name, price),
+      masters:master_id(slug, business_name)
+    `)
     .eq("status", "completed")
     .not("client_telegram_id", "is", null)
     .lte("booking_start", cutoff.toISOString())
@@ -195,7 +211,7 @@ export async function processReturningCustomersReminder(): Promise<{
   const seenCustomers = new Set<string>();
   let sent = 0;
 
-  for (const booking of (completedBookings ?? []) as BookingWithService[]) {
+  for (const booking of (completedBookings ?? []) as (BookingWithService & { masters?: { slug: string; business_name: string } })[]) {
     const customerKey = `${booking.master_id}:${booking.client_telegram_id}`;
     if (seenCustomers.has(customerKey)) continue;
     seenCustomers.add(customerKey);
@@ -206,16 +222,15 @@ export async function processReturningCustomersReminder(): Promise<{
     const alreadySent = await hasNotification(booking.id, "return_client");
     if (alreadySent) continue;
 
-    const { data: master } = await supabaseAdmin
-      .from("masters")
-      .select("business_name")
-      .eq("id", booking.master_id)
-      .maybeSingle();
+    const masterName = booking.masters?.business_name ?? "майстра";
+    const masterSlug = booking.masters?.slug ?? '';
+    if (!masterSlug) continue;
 
     const success = await sendReturnClientMessage(
       booking,
       telegramId,
-      master?.business_name ?? "майстра",
+      masterName,
+      masterSlug,       // ← четвёртый аргумент (slug)
     );
     if (success) sent++;
   }
