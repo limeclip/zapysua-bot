@@ -138,7 +138,7 @@ export async function notifyMasterBookingCreated(params: NotifyContext): Promise
   const clientName = escapeMarkdown(params.customer.name);
   const safeService = escapeMarkdown(serviceName);
 
-  
+
   const text =
     `✅ *Запис створено*\n\n` +
     `Ви створили запис для *${clientName}* на *${safeService}*, ${dateTime}.\n` +
@@ -185,6 +185,7 @@ export async function notifyClientBookingStatusChange(
   const { serviceName, dateTime, clientLink } = buildContext(params);
   const masterName = escapeMarkdown(params.master.business_name);
   const safeService = escapeMarkdown(serviceName);
+  const signature = getSignature(params.master.business_name); // ← ВИПРАВЛЕНО
 
   let text: string;
   let logType: NotificationType | null = null;
@@ -196,14 +197,14 @@ export async function notifyClientBookingStatusChange(
         `Ви записалися на *${safeService}*, ${dateTime}.\n` +
         `Очікуйте підтвердження від майстра.\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        getSignature();
+        signature;
       break;
     case "created_confirmed":
       text =
         `✅ *Запис підтверджено*\n\n` +
         `Ваш запис на *${safeService}*, ${dateTime} підтверджено майстром *${masterName}*!\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        getSignature();
+        signature;
       break;
     case "confirmed":
       text =
@@ -211,7 +212,7 @@ export async function notifyClientBookingStatusChange(
         `Ваш запис на *${safeService}*, ${dateTime} підтверджено!\n` +
         `Ми нагадаємо про візит за 24 години.\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        getSignature();
+        signature;
       logType = "confirmation";
       break;
     case "cancelled":
@@ -220,7 +221,7 @@ export async function notifyClientBookingStatusChange(
         `Ваш запис на *${safeService}*, ${dateTime} скасовано майстром.\n` +
         `Будь ласка, зверніться до майстра для уточнення.\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        getSignature();
+        signature;
       break;
     case "no_show":
       text =
@@ -228,7 +229,7 @@ export async function notifyClientBookingStatusChange(
         `На жаль, ви не з'явилися на запис *${safeService}*, ${dateTime}.\n` +
         `Якщо це помилка, зв'яжіться з майстром.\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        getSignature();
+        signature;
       break;
     case "rescheduled":
       text =
@@ -236,7 +237,7 @@ export async function notifyClientBookingStatusChange(
         `Новий час: *${safeService}*, ${dateTime}.\n` +
         `Очікуйте підтвердження від майстра.\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        getSignature();
+        signature;
       break;
     default:
       return;
@@ -256,6 +257,7 @@ export async function sendBookingReminder(
     timeZone?: string;
     masterSlug?: string | null;
     masterId: string;
+    businessName?: string; // Додано
   },
 ): Promise<boolean> {
   const timeZone = options.timeZone ?? "Europe/Kyiv";
@@ -265,19 +267,20 @@ export async function sendBookingReminder(
     slug: options.masterSlug ?? null,
     id: options.masterId,
   });
-
+  const signature = getSignature(options.businessName);
+  
   const text =
     type === "reminder_24h"
       ? `🔔 *Нагадування*\n\n` +
-        `Завтра у вас запис: *${serviceName}*, ${dateTime}.\n` +
-        `Будь ласка, скасуйте або перенесіть, якщо щось змінилося.\n\n` +
-        `👉 [Мої записи](${clientLink})\n\n` +
-        getSignature()
+      `Завтра у вас запис: *${serviceName}*, ${dateTime}.\n` +
+      `Будь ласка, скасуйте або перенесіть, якщо щось змінилося.\n\n` +
+      `👉 [Мої записи](${clientLink})\n\n` +
+      signature
       : `⏰ *Нагадування*\n\n` +
-        `Через 2 години у вас запис: *${serviceName}*, ${dateTime}.\n` +
-        `До зустрічі!\n\n` +
-        `👉 [Мої записи](${clientLink})\n\n` +
-        getSignature();
+      `Через 2 години у вас запис: *${serviceName}*, ${dateTime}.\n` +
+      `До зустрічі!\n\n` +
+      `👉 [Мої записи](${clientLink})\n\n` +
+      signature;
 
   const sent = await sendTelegramMessage(telegramId, text);
   await logNotification(booking.id, type, sent ? "sent" : "failed");
@@ -287,15 +290,16 @@ export async function sendBookingReminder(
 export async function sendThankYouMessage(
   booking: BookingWithService,
   telegramId: number,
-  master: Pick<Master, "slug" | "id">,
+  master: Pick<Master, "slug" | "id" | "business_name">, // Додано business_name
 ): Promise<boolean> {
   const clientLink = getClientStartAppLink(master);
+  const signature = getSignature(master.business_name); // Використовуйте назву
 
   const text =
     `❤️ *Дякуємо за візит!*\n\n` +
     `Будемо раді бачити вас знову.\n\n` +
     `👉 [Записатися знову](${clientLink})\n\n` +
-    getSignature();
+    signature;
 
   const sent = await sendTelegramMessage(telegramId, text);
   await logNotification(booking.id, "thank_you", sent ? "sent" : "failed");
@@ -309,13 +313,14 @@ export async function sendReturnClientMessage(
 ): Promise<boolean> {
   const masterName = escapeMarkdown(master.business_name);
   const clientLink = getClientStartAppLink(master);
+  const signature = getSignature(master.business_name); // ← додати аргумент
 
   const text =
     `🌷 *Давно не бачились!*\n\n` +
     `Скучаємо за вами у *${masterName}*.\n` +
     `Запишіться на нову зустріч — будемо раді вас бачити!\n\n` +
     `👉 [Записатися](${clientLink})\n\n` +
-    getSignature();
+    signature;
 
   const sent = await sendTelegramMessage(telegramId, text);
   await logNotification(booking.id, "return_client", sent ? "sent" : "failed");
