@@ -131,11 +131,12 @@ export async function notifyMasterBookingCreated(params: NotifyContext): Promise
   const clientName = escapeMarkdown(params.customer.name);
   const safeService = escapeMarkdown(serviceName);
 
+  
   const text =
     `✅ *Запис створено*\n\n` +
     `Ви створили запис для *${clientName}* на *${safeService}*, ${dateTime}.\n` +
     `Статус: *підтверджено*.\n\n` +
-    `👉 [Відкрити кабінет](${getMasterDashboardUrl()})\n\n` +
+    `[Відкрити кабінет](${getMasterDashboardDeepLink()})\n\n` +
     SIGNATURE;
 
   await sendTelegramMessage(params.master.telegram_id, text);
@@ -445,7 +446,7 @@ export async function sendBookingRescheduledToMaster(
     `Клієнт *${clientName}* переніс запис.\n\n` +
     `Послуга: *${serviceName}*\n` +
     `Новий час: ${dateTime}\n\n` +
-    `👉 [Відкрити кабінет](${getMasterDashboardUrl()})\n\n` +
+    `👉 [Відкрити кабінет](${getMasterDashboardDeepLink()})\n\n` +
     SIGNATURE;
 
   await sendTelegramMessage(master.telegram_id, text);
