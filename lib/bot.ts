@@ -1,6 +1,6 @@
 import { Bot, InlineKeyboard, type MiddlewareFn } from "grammy";
 import { findMasterByStartParam } from "@/lib/api/masters";
-import { getClientAppUrl, getWebAppBaseUrl } from "@/lib/referral";
+import { getClientAppUrl, getMasterDashboardDeepLink, getWebAppBaseUrl } from "@/lib/referral";
 import {
   getMasterByTelegramId,
   setTelegramContext,
@@ -71,11 +71,16 @@ async function sendMasterPanel(
     return;
   }
 
+  // ЗМІНА: використовуємо глибоке посилання для майстра
+  const dashboardDeepLink = getMasterDashboardDeepLink();
+  const keyboard = new InlineKeyboard().webApp("Відкрити кабінет", dashboardDeepLink);
+
   await ctx.reply(
     `Раді вас бачити, ${master.business_name}! 👋\n\nВідкрийте ваш кабінет, щоб керувати записами.`,
-    { reply_markup: webAppInlineKeyboard("Відкрити кабінет") },
+    { reply_markup: keyboard },
   );
 }
+
 
 async function sendGuestHelp(ctx: BotContext): Promise<void> {
   await ctx.reply(

@@ -48,13 +48,10 @@ function HomeContent() {
           return;
         }
 
-        // ВИПРАВЛЕНО: обробка master
+        // ВИПРАВЛЕНО: якщо master – одразу показуємо дашборд, без редиректу
         if (startParam === 'master') {
-          console.log('[MiniApp] Master detected, redirecting to /');
-          startTransition(() => {
-            setIsRedirecting(true);
-            router.replace('/');
-          });
+          console.log('[MiniApp] Master detected, showing dashboard');
+          setIsRedirecting(false);
           return;
         }
 
