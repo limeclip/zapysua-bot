@@ -98,4 +98,4 @@ curl -X GET "http://localhost:3000/api/cron/reminders" \
 - `notifyMasterBookingStatusChange` — скасування / no-show
 - `notifyClientBookingStatusChange` — всі статуси для клієнта
 
-Усі повідомлення містять посилання на кабінет клієнта або дашборд майстра.
+Усі клієнтські повідомлення містять deep link `t.me/Bot/app?startapp={slug}` через `getClientStartAppLink`. Посилання для майстра ведуть на веб-дашборд.

@@ -112,7 +112,7 @@ export async function POST(request: Request, context: RouteContext) {
 
     const { data: masterInfo } = await supabaseAdmin
       .from("masters")
-      .select("business_name, timezone, telegram_id")
+      .select("id, slug, business_name, timezone, telegram_id")
       .eq("id", existing.master_id)
       .maybeSingle();
 
@@ -128,6 +128,8 @@ export async function POST(request: Request, context: RouteContext) {
       notifyClientBookingStatusChange({
         booking,
         master: {
+          id: masterInfo?.id ?? (existing.master_id as string),
+          slug: masterInfo?.slug ?? null,
           business_name: masterInfo?.business_name ?? "",
           timezone: timeZone,
           telegram_id: masterInfo?.telegram_id ?? 0,

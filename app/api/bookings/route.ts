@@ -174,7 +174,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     const { data: master, error: masterError } = await supabaseAdmin
       .from("masters")
-      .select("id, is_active, telegram_id, business_name, timezone")
+      .select("id, is_active, telegram_id, business_name, timezone, slug")
       .eq("id", masterId)
       .maybeSingle();
 
@@ -262,6 +262,8 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     const booking = data as BookingWithService;
     const masterInfo = {
+      id: master.id,
+      slug: master.slug ?? null,
       business_name: master.business_name ?? "",
       timezone: master.timezone ?? "Europe/Kyiv",
       telegram_id: master.telegram_id,

@@ -29,6 +29,8 @@ function notifyStatusChange(
   booking: BookingWithService,
   newStatus: BookingStatus,
   master: {
+    id: string;
+    slug: string | null;
     business_name: string;
     timezone: string;
     telegram_id: number;
@@ -94,6 +96,8 @@ export async function PATCH(request: Request, context: RouteContext) {
 
       if (existing.status !== status) {
         notifyStatusChange(data as BookingWithService, status, {
+          id: masterAuth.master.id,
+          slug: masterAuth.master.slug ?? null,
           business_name: masterAuth.master.business_name,
           timezone: masterAuth.master.timezone ?? "Europe/Kyiv",
           telegram_id: masterAuth.master.telegram_id,

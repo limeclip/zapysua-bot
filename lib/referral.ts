@@ -43,11 +43,7 @@ export function getClientStartAppLink(
   return `https://t.me/${bot}/app?startapp=${encodeURIComponent(param)}`;
 }
 
-/** Посилання на кабінет клієнта через Main Mini App (startapp=account) */
-export function getClientAccountDeepLink(): string {
-  const bot = getBotUsername();
-  return `https://t.me/${bot}/app?startapp=account`;
-}
+
 /**
  * OLD FALLBACK
  */
