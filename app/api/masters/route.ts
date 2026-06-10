@@ -30,6 +30,8 @@ function parseSocialLinksBody(
     tiktok: String(raw.tiktok ?? ""),
     facebook: String(raw.facebook ?? ""),
     telegram: String(raw.telegram ?? ""),
+    youtube: String(raw.youtube ?? ""),
+    website: String(raw.website ?? ""),
   });
 }
 

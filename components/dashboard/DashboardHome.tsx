@@ -44,7 +44,19 @@ export function DashboardHome({ master, onMasterUpdate }: DashboardHomeProps) {
     }
   };
 
-  const navigateTab = (next: TabId) => setTab(next);
+  const [showPendingBookings, setShowPendingBookings] = useState(false);
+
+  const navigateTab = (
+    next: TabId,
+    options?: { showPending?: boolean },
+  ) => {
+    if (options?.showPending) {
+      setShowPendingBookings(true);
+    } else if (next !== "bookings") {
+      setShowPendingBookings(false);
+    }
+    setTab(next);
+  };
   
 
   return (
@@ -98,7 +110,12 @@ export function DashboardHome({ master, onMasterUpdate }: DashboardHomeProps) {
         )}
         {tab === "services" && <ServicesTab />}
         {tab === "bookings" && (
-          <BookingsTab master={master} onNavigateTab={navigateTab} />
+          <BookingsTab
+            master={master}
+            onNavigateTab={navigateTab}
+            showPendingList={showPendingBookings}
+            onPendingListShown={() => setShowPendingBookings(false)}
+          />
         )}
         {tab === "clients" && <ClientsTab master={master} />}
         {tab === "statistics" && <StatisticsTab master={master} />}

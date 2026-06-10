@@ -9,7 +9,12 @@ import {
 } from "@/lib/api/response";
 import { normalizeUaPhone } from "@/lib/phone";
 import { getTelegramUserFromRequest } from "@/lib/telegram/auth";
-import { sendBookingCreated } from "@/lib/notifications";
+import {
+  dispatchNotification,
+  notifyClientBookingStatusChange,
+  notifyMasterBookingCreated,
+  notifyMasterNewBooking,
+} from "@/lib/notifications";
 import { isMasterSubscriptionActive } from "@/lib/subscription-server";
 import { getOrCreateCustomerByPhone } from "@/lib/supabaseClient";
 import type { BookingStatus, BookingWithService } from "@/types";
@@ -169,7 +174,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     const { data: master, error: masterError } = await supabaseAdmin
       .from("masters")
-      .select("id, is_active")
+      .select("id, is_active, telegram_id, business_name, timezone")
       .eq("id", masterId)
       .maybeSingle();
 
@@ -255,25 +260,34 @@ export async function POST(request: Request): Promise<NextResponse> {
       clientTelegramId,
     });
 
-    const { data: masterInfo } = await supabaseAdmin
-      .from("masters")
-      .select("business_name, timezone")
-      .eq("id", masterId)
-      .maybeSingle();
+    const booking = data as BookingWithService;
+    const masterInfo = {
+      business_name: master.business_name ?? "",
+      timezone: master.timezone ?? "Europe/Kyiv",
+      telegram_id: master.telegram_id,
+    };
+    const notifyCustomer = { name: clientName, telegram_id: clientTelegramId };
+    const notifyCtx = { booking, master: masterInfo, customer: notifyCustomer };
 
-    if (clientTelegramId) {
-      try {
-        await sendBookingCreated(
-          data as BookingWithService,
-          { telegram_id: clientTelegramId, name: clientName },
-          {
-            business_name: masterInfo?.business_name ?? "",
-            timezone: masterInfo?.timezone ?? "Europe/Kyiv",
-          },
-          { confirmedByMaster: isMasterBooking && status === "confirmed" },
+    if (isMasterBooking && status === "confirmed") {
+      dispatchNotification(notifyMasterBookingCreated(notifyCtx));
+      if (clientTelegramId) {
+        dispatchNotification(
+          notifyClientBookingStatusChange({
+            ...notifyCtx,
+            newStatus: "created_confirmed",
+          }),
         );
-      } catch (notifyError) {
-        console.error("[api/bookings POST] notification:", notifyError);
+      }
+    } else if (!isMasterBooking) {
+      dispatchNotification(notifyMasterNewBooking(notifyCtx));
+      if (clientTelegramId) {
+        dispatchNotification(
+          notifyClientBookingStatusChange({
+            ...notifyCtx,
+            newStatus: "created",
+          }),
+        );
       }
     }
 

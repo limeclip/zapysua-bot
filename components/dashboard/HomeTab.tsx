@@ -23,6 +23,7 @@ import type {
   BookingWithService,
   MasterWithMeta,
 } from "@/types";
+import { PendingBookingsCard } from "@/components/dashboard/PendingBookingsCard";
 import type { TabId } from "@/components/shared/TabBar";
 import {
   Calendar,
@@ -34,7 +35,7 @@ import {
 
 type HomeTabProps = {
   master: MasterWithMeta;
-  onNavigateTab: (tab: TabId) => void;
+  onNavigateTab: (tab: TabId, options?: { showPending?: boolean }) => void;
 };
 
 export function HomeTab({ master, onNavigateTab }: HomeTabProps) {
@@ -131,6 +132,11 @@ export function HomeTab({ master, onNavigateTab }: HomeTabProps) {
 
       <SubscriptionGate master={master}>
         {error && <ApiErrorState message={error} onRetry={load} />}
+
+        <PendingBookingsCard
+          master={master}
+          onView={() => onNavigateTab("bookings", { showPending: true })}
+        />
 
         <WeekCalendar
           master={master}

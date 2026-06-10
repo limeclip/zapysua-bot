@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { findOverlappingBooking } from "@/lib/bookings-server";
 import {
-  sendBookingRescheduled,
+  dispatchNotification,
+  notifyClientBookingStatusChange,
   sendBookingRescheduledToMaster,
 } from "@/lib/notifications";
 import {
@@ -117,25 +118,37 @@ export async function POST(request: Request, context: RouteContext) {
 
     const timeZone = masterInfo?.timezone ?? "Europe/Kyiv";
 
-    try {
-      await sendBookingRescheduled(
-        newBooking as BookingWithService,
-        { telegram_id: existing.client_telegram_id as number },
-        { timeZone },
-      );
-      if (masterInfo?.telegram_id) {
-        await sendBookingRescheduledToMaster(
-          newBooking as BookingWithService,
+    const booking = newBooking as BookingWithService;
+    const customer = {
+      name: existing.client_name as string,
+      telegram_id: existing.client_telegram_id as number,
+    };
+
+    dispatchNotification(
+      notifyClientBookingStatusChange({
+        booking,
+        master: {
+          business_name: masterInfo?.business_name ?? "",
+          timezone: timeZone,
+          telegram_id: masterInfo?.telegram_id ?? 0,
+        },
+        customer,
+        newStatus: "rescheduled",
+      }),
+    );
+
+    if (masterInfo?.telegram_id) {
+      dispatchNotification(
+        sendBookingRescheduledToMaster(
+          booking,
           {
             telegram_id: masterInfo.telegram_id,
             business_name: masterInfo.business_name,
             client_name: existing.client_name as string,
           },
           { timeZone },
-        );
-      }
-    } catch (notifyError) {
-      console.error("[api/bookings reschedule] notification:", notifyError);
+        ),
+      );
     }
 
     return NextResponse.json({ booking: newBooking });

@@ -7,9 +7,9 @@ import {
   serverError,
 } from "@/lib/api/response";
 import {
-  sendBookingCancelled,
-  sendBookingConfirmation,
-  sendBookingNoShow,
+  dispatchNotification,
+  notifyClientBookingStatusChange,
+  notifyMasterBookingStatusChange,
 } from "@/lib/notifications";
 import type { BookingStatus, BookingWithService } from "@/types";
 
@@ -25,27 +25,35 @@ const BOOKING_SELECT = "*, services(id, name, price)";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-async function notifyStatusChange(
+function notifyStatusChange(
   booking: BookingWithService,
   newStatus: BookingStatus,
-  timeZone: string,
-): Promise<void> {
-  if (!booking.client_telegram_id) return;
+  master: {
+    business_name: string;
+    timezone: string;
+    telegram_id: number;
+  },
+): void {
+  const customer = {
+    name: booking.client_name,
+    telegram_id: booking.client_telegram_id,
+  };
+  const ctx = { booking, master, customer };
 
-  const customer = { telegram_id: booking.client_telegram_id };
+  if (
+    newStatus === "confirmed" ||
+    newStatus === "cancelled" ||
+    newStatus === "no_show"
+  ) {
+    dispatchNotification(
+      notifyClientBookingStatusChange({ ...ctx, newStatus }),
+    );
+  }
 
-  if (newStatus === "confirmed") {
-    await sendBookingConfirmation(booking, customer, { timeZone });
-  } else if (newStatus === "cancelled") {
-    await sendBookingCancelled(booking, {
-      timeZone,
-      telegramId: booking.client_telegram_id,
-    });
-  } else if (newStatus === "no_show") {
-    await sendBookingNoShow(booking, {
-      timeZone,
-      telegramId: booking.client_telegram_id,
-    });
+  if (newStatus === "cancelled" || newStatus === "no_show") {
+    dispatchNotification(
+      notifyMasterBookingStatusChange({ ...ctx, newStatus }),
+    );
   }
 }
 
@@ -85,16 +93,11 @@ export async function PATCH(request: Request, context: RouteContext) {
       if (!data) return badRequest("Запис не знайдено");
 
       if (existing.status !== status) {
-        const timeZone = masterAuth.master.timezone ?? "Europe/Kyiv";
-        try {
-          await notifyStatusChange(
-            data as BookingWithService,
-            status,
-            timeZone,
-          );
-        } catch (notifyError) {
-          console.error("[api/bookings PATCH] notification:", notifyError);
-        }
+        notifyStatusChange(data as BookingWithService, status, {
+          business_name: masterAuth.master.business_name,
+          timezone: masterAuth.master.timezone ?? "Europe/Kyiv",
+          telegram_id: masterAuth.master.telegram_id,
+        });
       }
 
       return NextResponse.json({ booking: data });
