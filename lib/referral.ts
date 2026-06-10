@@ -43,6 +43,11 @@ export function getClientStartAppLink(
   return `https://t.me/${bot}/app?startapp=${encodeURIComponent(param)}`;
 }
 
+/** Посилання для майстра на дашборд через Mini App */
+export function getMasterDashboardDeepLink(): string {
+  const bot = getBotUsername();
+  return `https://t.me/${bot}/app?startapp=master`;
+}
 
 /**
  * OLD FALLBACK

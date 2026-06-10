@@ -54,6 +54,16 @@ function HomeContent() {
           return;
         }
 
+        if (startParam === 'master') {
+          console.log('[MiniApp] Redirecting to master dashboard (home)');
+          startTransition(() => {
+            setIsRedirecting(true);
+            router.replace('/'); // або '/dashboard'
+          });
+          return;
+        }
+        
+
         /**
          * REDIRECT
          */

@@ -1,6 +1,6 @@
 import { bot } from "@/lib/bot";
 import { formatDateKey, formatDateLong, formatTime } from "@/lib/dates";
-import { getClientStartAppLink, getWebAppBaseUrl } from "@/lib/referral";
+import { getClientStartAppLink, getMasterDashboardDeepLink, getWebAppBaseUrl } from "@/lib/referral";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type {
   BookingStatus,
@@ -22,6 +22,7 @@ const SIGNATURE = "З повагою, AI-адміністратор ZapysUa";
 function escapeMarkdown(text: string): string {
   return text.replace(/([_*[\]()~`>#+\-=|{}.!])/g, "\\$1");
 }
+
 
 export function getMasterDashboardUrl(): string {
   return getWebAppBaseUrl();
@@ -115,12 +116,13 @@ export async function notifyMasterNewBooking(params: NotifyContext): Promise<voi
   const { serviceName, dateTime } = buildContext(params);
   const clientName = escapeMarkdown(params.customer.name);
   const safeService = escapeMarkdown(serviceName);
-
+  const dashboardLink = getMasterDashboardDeepLink();
+  
   const text =
     `📝 *Новий запис*\n\n` +
     `Клієнт *${clientName}* записався на *${safeService}*, ${dateTime}.\n\n` +
     `Будь ласка, підтвердіть або скасуйте запис у кабінеті.\n\n` +
-    `👉 [Відкрити кабінет](${getMasterDashboardUrl()})\n\n` +
+    `👉 [Відкрити кабінет](${dashboardLink})` +
     SIGNATURE;
 
   await sendTelegramMessage(params.master.telegram_id, text);
