@@ -169,15 +169,21 @@ export async function sendThankYouReminder(): Promise<{ sent: number }> {
     const alreadySent = await hasNotification(booking.id, "thank_you");
     if (alreadySent) continue;
 
-    const { data: master } = await supabaseAdmin
+    const { data: master, error: masterError } = await supabaseAdmin
       .from("masters")
-      .select("slug")
+      .select("slug, business_name") // додали business_name
       .eq("id", booking.master_id)
       .maybeSingle();
 
+    if (masterError || !master) {
+      console.error(`Cannot fetch master for booking ${booking.id}`);
+      continue;
+    }
+
     const success = await sendThankYouMessage(booking, telegramId, {
-      slug: master?.slug ?? null,
+      slug: master.slug ?? null,
       id: booking.master_id,
+      business_name: master.business_name, // додали передачу назви
     });
     if (success) sent++;
   }
