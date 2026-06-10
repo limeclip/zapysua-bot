@@ -23,6 +23,13 @@ function escapeMarkdown(text: string): string {
   return text.replace(/([_*[\]()~`>#+\-=|{}.!])/g, "\\$1");
 }
 
+// ========== НОВА ФУНКЦІЯ ДЛЯ ПІДПИСУ ==========
+function getSignature(businessName?: string): string {
+  const name = businessName ? ` (${escapeMarkdown(businessName)})` : "";
+  return `З повагою, AI-адміністратор ${name}`;
+}
+
+
 export function getMasterDashboardUrl(): string {
   return getWebAppBaseUrl();
 }
@@ -189,14 +196,14 @@ export async function notifyClientBookingStatusChange(
         `Ви записалися на *${safeService}*, ${dateTime}.\n` +
         `Очікуйте підтвердження від майстра.\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        SIGNATURE;
+        getSignature();
       break;
     case "created_confirmed":
       text =
         `✅ *Запис підтверджено*\n\n` +
         `Ваш запис на *${safeService}*, ${dateTime} підтверджено майстром *${masterName}*!\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        SIGNATURE;
+        getSignature();
       break;
     case "confirmed":
       text =
@@ -204,7 +211,7 @@ export async function notifyClientBookingStatusChange(
         `Ваш запис на *${safeService}*, ${dateTime} підтверджено!\n` +
         `Ми нагадаємо про візит за 24 години.\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        SIGNATURE;
+        getSignature();
       logType = "confirmation";
       break;
     case "cancelled":
@@ -213,7 +220,7 @@ export async function notifyClientBookingStatusChange(
         `Ваш запис на *${safeService}*, ${dateTime} скасовано майстром.\n` +
         `Будь ласка, зверніться до майстра для уточнення.\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        SIGNATURE;
+        getSignature();
       break;
     case "no_show":
       text =
@@ -221,7 +228,7 @@ export async function notifyClientBookingStatusChange(
         `На жаль, ви не з'явилися на запис *${safeService}*, ${dateTime}.\n` +
         `Якщо це помилка, зв'яжіться з майстром.\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        SIGNATURE;
+        getSignature();
       break;
     case "rescheduled":
       text =
@@ -229,7 +236,7 @@ export async function notifyClientBookingStatusChange(
         `Новий час: *${safeService}*, ${dateTime}.\n` +
         `Очікуйте підтвердження від майстра.\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        SIGNATURE;
+        getSignature();
       break;
     default:
       return;
@@ -265,12 +272,12 @@ export async function sendBookingReminder(
         `Завтра у вас запис: *${serviceName}*, ${dateTime}.\n` +
         `Будь ласка, скасуйте або перенесіть, якщо щось змінилося.\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        SIGNATURE
+        getSignature()
       : `⏰ *Нагадування*\n\n` +
         `Через 2 години у вас запис: *${serviceName}*, ${dateTime}.\n` +
         `До зустрічі!\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        SIGNATURE;
+        getSignature();
 
   const sent = await sendTelegramMessage(telegramId, text);
   await logNotification(booking.id, type, sent ? "sent" : "failed");
@@ -288,7 +295,7 @@ export async function sendThankYouMessage(
     `❤️ *Дякуємо за візит!*\n\n` +
     `Будемо раді бачити вас знову.\n\n` +
     `👉 [Записатися знову](${clientLink})\n\n` +
-    SIGNATURE;
+    getSignature();
 
   const sent = await sendTelegramMessage(telegramId, text);
   await logNotification(booking.id, "thank_you", sent ? "sent" : "failed");
@@ -308,7 +315,7 @@ export async function sendReturnClientMessage(
     `Скучаємо за вами у *${masterName}*.\n` +
     `Запишіться на нову зустріч — будемо раді вас бачити!\n\n` +
     `👉 [Записатися](${clientLink})\n\n` +
-    SIGNATURE;
+    getSignature();
 
   const sent = await sendTelegramMessage(telegramId, text);
   await logNotification(booking.id, "return_client", sent ? "sent" : "failed");
@@ -446,6 +453,7 @@ export async function sendBookingRescheduledToMaster(
     `Клієнт *${clientName}* переніс запис.\n\n` +
     `Послуга: *${serviceName}*\n` +
     `Новий час: ${dateTime}\n\n` +
+    `Будь ласка, підтвердіть або скасуйте запис у кабінеті.\n\n` +
     `👉 [Відкрити кабінет](${getMasterDashboardDeepLink()})\n\n` +
     SIGNATURE;
 
