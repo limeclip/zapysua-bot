@@ -8,6 +8,7 @@ import type {
   Master,
   Service,
 } from "@/types";
+import { getClientAccountDeepLink, getClientStartAppLink } from "@/lib/referral";
 
 export type NotificationType =
   | "confirmation"
@@ -187,14 +188,14 @@ export async function notifyClientBookingStatusChange(
         `📝 *Запис створено*\n\n` +
         `Ви записалися на *${safeService}*, ${dateTime}.\n` +
         `Очікуйте підтвердження від майстра.\n\n` +
-        `👉 [Мої записи](${getClientAccountUrl()})\n\n` +
+        `👉 [Мої записи](${getClientAccountDeepLink()})\n\n` +
         SIGNATURE;
       break;
     case "created_confirmed":
       text =
         `✅ *Запис підтверджено*\n\n` +
         `Ваш запис на *${safeService}*, ${dateTime} підтверджено майстром *${masterName}*!\n\n` +
-        `👉 [Мої записи](${getClientAccountUrl()})\n\n` +
+        `👉 [Мої записи](${getClientAccountDeepLink()})\n\n` +
         SIGNATURE;
       break;
     case "confirmed":
@@ -202,7 +203,7 @@ export async function notifyClientBookingStatusChange(
         `✅ *Запис підтверджено*\n\n` +
         `Ваш запис на *${safeService}*, ${dateTime} підтверджено!\n` +
         `Ми нагадаємо про візит за 24 години.\n\n` +
-        `👉 [Мої записи](${getClientAccountUrl()})\n\n` +
+        `👉 [Мої записи](${getClientAccountDeepLink()})\n\n` +
         SIGNATURE;
       logType = "confirmation";
       break;
@@ -211,7 +212,7 @@ export async function notifyClientBookingStatusChange(
         `❌ *Запис скасовано*\n\n` +
         `Ваш запис на *${safeService}*, ${dateTime} скасовано майстром.\n` +
         `Будь ласка, зверніться до майстра для уточнення.\n\n` +
-        `👉 [Мої записи](${getClientAccountUrl()})\n\n` +
+        `👉 [Мої записи](${getClientAccountDeepLink()})\n\n` +
         SIGNATURE;
       break;
     case "no_show":
@@ -219,7 +220,7 @@ export async function notifyClientBookingStatusChange(
         `⚠️ *Вас не було на записі*\n\n` +
         `На жаль, ви не з'явилися на запис *${safeService}*, ${dateTime}.\n` +
         `Якщо це помилка, зв'яжіться з майстром.\n\n` +
-        `👉 [Мої записи](${getClientAccountUrl()})\n\n` +
+        `👉 [Мої записи](${getClientAccountDeepLink()})\n\n` +
         SIGNATURE;
       break;
     case "rescheduled":
@@ -227,7 +228,7 @@ export async function notifyClientBookingStatusChange(
         `📅 *Запис перенесено*\n\n` +
         `Новий час: *${safeService}*, ${dateTime}.\n` +
         `Очікуйте підтвердження від майстра.\n\n` +
-        `👉 [Мої записи](${getClientAccountUrl()})\n\n` +
+        `👉 [Мої записи](${getClientAccountDeepLink()})\n\n` +
         SIGNATURE;
       break;
     default:
@@ -255,12 +256,12 @@ export async function sendBookingReminder(
       ? `🔔 *Нагадування*\n\n` +
         `Завтра у вас запис: *${serviceName}*, ${dateTime}.\n` +
         `Будь ласка, підтвердіть або скасуйте, якщо щось змінилося.\n\n` +
-        `👉 [Мої записи](${getClientAccountUrl()})\n\n` +
+        `👉 [Мої записи](${getClientAccountDeepLink()})\n\n` +
         SIGNATURE
       : `⏰ *Нагадування*\n\n` +
         `Через 2 години у вас запис: *${serviceName}*, ${dateTime}.\n` +
         `До зустрічі!\n\n` +
-        `👉 [Мої записи](${getClientAccountUrl()})\n\n` +
+        `👉 [Мої записи](${getClientAccountDeepLink()})\n\n` +
         SIGNATURE;
 
   const sent = await sendTelegramMessage(telegramId, text);
@@ -271,11 +272,13 @@ export async function sendBookingReminder(
 export async function sendThankYouMessage(
   booking: BookingWithService,
   telegramId: number,
+  masterSlug: string,   // <-- добавить
 ): Promise<boolean> {
+  const bookAgainLink = getClientStartAppLink({ slug: masterSlug, id: booking.master_id });
   const text =
     `❤️ *Дякуємо за візит!*\n\n` +
     `Будемо раді бачити вас знову.\n\n` +
-    `👉 [Записатися знову](${getClientAccountUrl()})\n\n` +
+    `👉 [Записатися знову](${bookAgainLink})\n\n` +
     SIGNATURE;
 
   const sent = await sendTelegramMessage(telegramId, text);
@@ -287,12 +290,14 @@ export async function sendReturnClientMessage(
   booking: BookingWithService,
   telegramId: number,
   masterName: string,
+  masterSlug: string,   // <-- добавить
 ): Promise<boolean> {
+  const bookLink = getClientStartAppLink({ slug: masterSlug, id: booking.master_id });
   const text =
     `🌷 *Давно не бачились!*\n\n` +
     `Скучаємо за вами у *${masterName}*.\n` +
     `Запишіться на нову зустріч — будемо раді вас бачити!\n\n` +
-    `👉 [Записатися](${getClientAccountUrl()})\n\n` +
+    `👉 [Записатися](${bookLink})\n\n` +
     SIGNATURE;
 
   const sent = await sendTelegramMessage(telegramId, text);

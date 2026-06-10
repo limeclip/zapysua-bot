@@ -45,6 +45,15 @@ function HomeContent() {
          */
         await new Promise((resolve) => setTimeout(resolve, 500));
 
+        if (startParam === 'account') {
+          console.log('[MiniApp] Redirecting to /client/account');
+          startTransition(() => {
+            setIsRedirecting(true);
+            router.replace('/client/account');
+          });
+          return;
+        }
+
         /**
          * REDIRECT
          */
