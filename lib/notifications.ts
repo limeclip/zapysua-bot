@@ -23,7 +23,6 @@ function escapeMarkdown(text: string): string {
   return text.replace(/([_*[\]()~`>#+\-=|{}.!])/g, "\\$1");
 }
 
-
 export function getMasterDashboardUrl(): string {
   return getWebAppBaseUrl();
 }
@@ -61,7 +60,6 @@ async function logNotification(
     type,
     status,
   });
-
   if (error) {
     console.error("[notifications] logNotification:", error);
   }
@@ -116,13 +114,13 @@ export async function notifyMasterNewBooking(params: NotifyContext): Promise<voi
   const { serviceName, dateTime } = buildContext(params);
   const clientName = escapeMarkdown(params.customer.name);
   const safeService = escapeMarkdown(serviceName);
-  const dashboardLink = getMasterDashboardDeepLink();
-  
+  const masterLink = getMasterDashboardDeepLink(); // ВИПРАВЛЕНО
+
   const text =
     `📝 *Новий запис*\n\n` +
     `Клієнт *${clientName}* записався на *${safeService}*, ${dateTime}.\n\n` +
     `Будь ласка, підтвердіть або скасуйте запис у кабінеті.\n\n` +
-    `👉 [Відкрити кабінет](${dashboardLink})\n\n` +
+    `👉 [Відкрити кабінет](${masterLink})\n\n` +
     SIGNATURE;
 
   await sendTelegramMessage(params.master.telegram_id, text);
@@ -265,7 +263,6 @@ export async function sendBookingReminder(
       ? `🔔 *Нагадування*\n\n` +
         `Завтра у вас запис: *${serviceName}*, ${dateTime}.\n` +
         `Будь ласка, скасуйте або перенесіть, якщо щось змінилося.\n\n` +
-        // `Якщо щось змінилося, ви можете скасувати або перенести запис.\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
         SIGNATURE
       : `⏰ *Нагадування*\n\n` +
@@ -317,8 +314,7 @@ export async function sendReturnClientMessage(
   return sent;
 }
 
-// --- Зворотна сумісність (делегують до нових функцій) ---
-
+// --- Зворотна сумісність ---
 export async function sendBookingCreated(
   booking: BookingWithService,
   customer: Pick<Customer, "telegram_id" | "name"> | { telegram_id?: number | null; name: string },

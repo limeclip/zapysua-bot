@@ -26,33 +26,34 @@ function HomeContent() {
         console.log("INIT DATA:", tg?.initData);
         console.log("INIT DATA UNSAFE:", tg?.initDataUnsafe);
 
-        const urlStartParam =
-          searchParams.get("startapp")?.trim() ||
-          searchParams.get("tgWebAppStartParam")?.trim() ||
-          null;
+        let startParam = searchParams.get("startapp")?.trim() ||
+                         searchParams.get("tgWebAppStartParam")?.trim() ||
+                         null;
         const tgStartParam = tg?.initDataUnsafe?.start_param?.trim() || null;
-        const startParam = urlStartParam || tgStartParam;
+        startParam = startParam || tgStartParam;
 
-        console.log("[MiniApp] startapp from URL:", urlStartParam);
+        console.log("[MiniApp] startapp from URL:", startParam);
         console.log("[MiniApp] start_param from Telegram:", tgStartParam);
         console.log("[MiniApp] final start param:", startParam);
 
         await new Promise((resolve) => setTimeout(resolve, 500));
 
-        if (startParam === "account") {
-          console.log("[MiniApp] Redirecting to /client/account");
+        // Обробка переходу в кабінет клієнта
+        if (startParam === 'account') {
+          console.log('[MiniApp] Redirecting to /client/account');
           startTransition(() => {
             setIsRedirecting(true);
-            router.replace("/client/account");
+            router.replace('/client/account');
           });
           return;
         }
 
-        if (startParam === "master") {
-          console.log("[MiniApp] Redirecting to master dashboard (home)");
+        // ВИПРАВЛЕНО: обробка master
+        if (startParam === 'master') {
+          console.log('[MiniApp] Master detected, redirecting to /');
           startTransition(() => {
             setIsRedirecting(true);
-            router.replace("/");
+            router.replace('/');
           });
           return;
         }
@@ -66,12 +67,11 @@ function HomeContent() {
           return;
         }
 
-        // Якщо параметра немає – показуємо звичайний інтерфейс
-        console.log("[MiniApp] No start_param, showing MiniAppShell");
+        console.log("[MiniApp] start_param NOT FOUND");
+        // Якщо параметра немає – показуємо дашборд майстра
         setIsRedirecting(false);
       } catch (error) {
         console.error("[MiniApp] ERROR:", error);
-        setIsRedirecting(false);
       }
     }
 
@@ -94,13 +94,7 @@ function HomeContent() {
 
 export default function Home() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center">
-          Завантаження...
-        </div>
-      }
-    >
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Завантаження...</div>}>
       <HomeContent />
     </Suspense>
   );
