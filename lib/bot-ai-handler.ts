@@ -25,12 +25,13 @@ function buildAiWelcomeText(businessName: string): string {
 }
 
 export function buildAiWelcomeKeyboard(master: Master): InlineKeyboard {
+  const mid = master.id;
   return new InlineKeyboard()
-    .text("Записатися", "ai_book")
-    .text("Послуги", "ai_services")
+    .text("Записатися", `ai_book|${mid}`)
+    .text("Послуги", `ai_services|${mid}`)
     .row()
-    .text("Мої записи", "ai_my_bookings")
-    .text("Допомога", "ai_help")
+    .text("Мої записи", `ai_my_bookings|${mid}`)
+    .text("Допомога", `ai_help|${mid}`)
     .row()
     .webApp("Відкрити Mini App", getClientAppUrl(master));
 }
@@ -39,6 +40,7 @@ export async function sendAiWelcome(
   ctx: BotContext,
   master: Master,
 ): Promise<void> {
+  // Все одно зберігаємо в сесію для текстових повідомлень
   ctx.session.masterId = master.id;
   ctx.session.history = [];
   console.log(`[AI] Сесія збережена: masterId=${ctx.session.masterId}`);
@@ -148,7 +150,8 @@ async function sendSlotsKeyboard(
   const keyboard = new InlineKeyboard();
   slots.slice(0, 12).forEach((slot, index) => {
     if (index > 0 && index % 3 === 0) keyboard.row();
-    keyboard.text(slot.label, `ai_slot|${index}`);
+    // додаємо masterId в дані кнопки
+    keyboard.text(slot.label, `ai_slot|${masterId}|${index}`);
   });
 
   await ctx.reply("Оберіть зручний час:", { reply_markup: keyboard });
@@ -169,7 +172,10 @@ async function sendServicesWithBookButtons(
 
   context.services.forEach((service, index) => {
     if (index > 0) keyboard.row();
-    keyboard.text(`Записатися: ${service.name}`, `ai_book_service:${service.id}`);
+    keyboard.text(
+      `Записатися: ${service.name}`,
+      `ai_book_service|${masterId}|${service.id}`,
+    );
   });
 
   await ctx.reply(text, {
@@ -190,26 +196,32 @@ export function registerAiHandlers(bot: Bot<BotContext>): void {
   bot.callbackQuery(/^ai_/, async (ctx) => {
     await ctx.answerCallbackQuery();
 
-    const masterId = ctx.session.masterId;
+    const data = ctx.callbackQuery.data ?? "";
+    const parts = data.split("|");
+    const action = parts[0];
+    const masterId = parts[1];
+    const extra = parts[2];
+
     if (!masterId) {
-      console.log("[AI] Немає masterId в сесії для callback");
+      console.log("[AI] Немає masterId в callback data");
       await ctx.reply("Спочатку перейдіть за посиланням майстра (/start slug).");
       return;
     }
 
-    const data = ctx.callbackQuery.data ?? "";
+    // Оновлюємо сесію (для історії)
+    ctx.session.masterId = masterId;
 
-    if (data === "ai_book") {
+    if (action === "ai_book") {
       await handleQuickAction(ctx, masterId, "Хочу записатися на послугу. Допоможи мені обрати послугу, дату та час.");
       return;
     }
 
-    if (data === "ai_services") {
+    if (action === "ai_services") {
       await sendServicesWithBookButtons(ctx, masterId);
       return;
     }
 
-    if (data === "ai_my_bookings") {
+    if (action === "ai_my_bookings") {
       const context = await getMasterContext(masterId, ctx.from?.id?.toString());
       const text = context
         ? formatClientBookingsText(context)
@@ -218,26 +230,27 @@ export function registerAiHandlers(bot: Bot<BotContext>): void {
       return;
     }
 
-    if (data === "ai_help") {
+    if (action === "ai_help") {
       await ctx.reply(getAiHelpText());
       return;
     }
 
-    if (data.startsWith("ai_book_service:")) {
-      const serviceId = data.replace("ai_book_service:", "");
+    if (action === "ai_book_service" && extra) {
+      const serviceId = extra;
       await handleQuickAction(ctx, masterId, `Хочу записатися на послугу з id ${serviceId}. Допоможи обрати дату та час.`);
       return;
     }
 
-    if (data.startsWith("ai_slot|")) {
-      const index = Number.parseInt(data.replace("ai_slot|", ""), 10);
+    if (action === "ai_slot" && extra) {
+      const index = Number.parseInt(extra, 10);
       const slot = ctx.session.pendingSlots?.[index];
       if (!slot) return;
       await handleQuickAction(ctx, masterId, `Запиши мене на послугу ${slot.serviceId} на ${slot.startTime}`);
+      return;
     }
   });
 
-  // ОБРОБНИК ТЕКСТОВИХ ПОВІДОМЛЕНЬ – ВИПРАВЛЕНИЙ
+  // Обробник текстових повідомлень – залишається, але тепер покладається на сесію
   bot.on("message:text", async (ctx, next) => {
     const text = ctx.message.text.trim();
     console.log(`[AI] Отримано текст: "${text}"`);
@@ -246,7 +259,6 @@ export function registerAiHandlers(bot: Bot<BotContext>): void {
       return next();
     }
 
-    // Якщо користувач майстер – пропускаємо
     if (ctx.master) {
       console.log("[AI] Користувач є майстром, пропускаємо");
       return next();
