@@ -9,8 +9,8 @@ import {
 } from "@/lib/ai-tools";
 import { getMasterContext } from "@/lib/ai-context";
 import { getClientAppUrl } from "@/lib/referral";
-import type { BotContext, Master } from "@/types";
-import type { AiActionShowSlots, AiConversationMessage } from "@/types/ai";
+import type { BotContext, Master, AiSessionMessage } from "@/types";
+import type { AiActionShowSlots } from "@/types/ai";
 
 function buildAiWelcomeText(businessName: string): string {
   return (
@@ -67,7 +67,7 @@ function pushHistory(
   userMessage: string,
   assistantMessage: string,
 ): void {
-  const history: AiConversationMessage[] = session.history ?? [];
+  const history: AiSessionMessage[] = session.history ?? [];
   history.push({ role: "user", content: userMessage });
   history.push({ role: "assistant", content: assistantMessage });
   session.history = history.slice(-MAX_HISTORY);
