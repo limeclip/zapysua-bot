@@ -1,6 +1,7 @@
-import { Bot, InlineKeyboard, type MiddlewareFn } from "grammy";
+import { Bot, InlineKeyboard, session, type MiddlewareFn } from "grammy";
 import { findMasterByStartParam } from "@/lib/api/masters";
-import { getClientAppUrl, getWebAppBaseUrl } from "@/lib/referral";
+import { registerAiHandlers, sendAiWelcome } from "@/lib/bot-ai-handler";
+import { getWebAppBaseUrl } from "@/lib/referral";
 import {
   getMasterByTelegramId,
   setTelegramContext,
@@ -8,7 +9,7 @@ import {
   hasAiSettings,
 } from "@/lib/supabaseClient";
 import { registerPaymentHandlers } from "@/lib/bot-payments";
-import type { BotContext, Master } from "@/types";
+import type { BotContext, Master, SessionData } from "@/types";
 
 function getBotToken(): string {
   const token = process.env.BOT_TOKEN;
@@ -23,38 +24,6 @@ function webAppInlineKeyboard(buttonText: string, url?: string) {
     buttonText,
     url ?? getWebAppBaseUrl(),
   );
-}
-
-async function sendClientWelcome(
-  ctx: BotContext,
-  master: Master,
-): Promise<void> {
-  const clientUrl = getClientAppUrl(master);
-  const keyboard = new InlineKeyboard().webApp(
-    "📅 Записатися на прийом",
-    clientUrl,
-  );
-
-  const caption =
-    `👋 Привіт!\n` +
-    `Це AI-адміністратор *${master.business_name}*\n\n` +
-    `Оберіть послугу та запишіться на зручний час.`;
-
-  const plainText =
-    `👋 Привіт!\n` +
-    `Це AI-адміністратор ${master.business_name}\n\n` +
-    `Натисніть кнопку нижче, щоб записатися:`;
-
-  if (master.logo_url) {
-    await ctx.replyWithPhoto(master.logo_url, {
-      caption,
-      parse_mode: "Markdown",
-      reply_markup: keyboard,
-    });
-    return;
-  }
-
-  await ctx.reply(plainText, { reply_markup: keyboard });
 }
 
 async function sendMasterPanel(
@@ -84,7 +53,7 @@ async function sendGuestHelp(ctx: BotContext): Promise<void> {
       "Майстер? Натисніть кнопку нижче:",
     {
       reply_markup: new InlineKeyboard().url(
-        "💼 Зареєструватися як майстер",
+        "Зареєструватися як майстер",
         getWebAppBaseUrl(),
       ),
     },
@@ -92,6 +61,12 @@ async function sendGuestHelp(ctx: BotContext): Promise<void> {
 }
 
 export const bot = new Bot<BotContext>(getBotToken());
+
+bot.use(
+  session({
+    initial: (): SessionData => ({}),
+  }),
+);
 
 bot.command("start", async (ctx) => {
   const payload =
@@ -104,7 +79,7 @@ bot.command("start", async (ctx) => {
       const referredMaster = await findMasterByStartParam(payload);
 
       if (referredMaster) {
-        await sendClientWelcome(ctx, referredMaster);
+        await sendAiWelcome(ctx, referredMaster);
         return;
       }
 
@@ -154,4 +129,5 @@ const masterMiddleware: MiddlewareFn<BotContext> = async (ctx, next) => {
 
 bot.use(masterMiddleware);
 
+registerAiHandlers(bot);
 registerPaymentHandlers(bot);

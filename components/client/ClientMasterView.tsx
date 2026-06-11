@@ -13,6 +13,7 @@ import {
   ClientMasterTabBar,
   type ClientMasterTabId,
 } from "@/components/client/ClientMasterTabBar";
+import { ChatButton } from "@/components/ai/ChatButton";
 import { getCategoryLabel } from "@/lib/master-category";
 import { cn } from "@/lib/utils";
 import type { PublicMasterProfile, SocialLinks } from "@/types";
@@ -269,6 +270,8 @@ export function ClientMasterView({ profile }: ClientMasterViewProps) {
           <ClientMasterBookings masterId={profile.id} />
         )}
       </div>
+
+      <ChatButton masterId={profile.id} businessName={profile.business_name} />
     </div>
   );
 }

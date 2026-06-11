@@ -17,7 +17,7 @@ export type NotificationType =
   | "return_client"
   | "thank_you";
 
-const SIGNATURE = "З повагою, AI-адміністратор ZapysUa";
+const SIGNATURE = "З повагою, AI-адміністратор ZapysUA";
 
 function escapeMarkdown(text: string): string {
   return text.replace(/([_*[\]()~`>#+\-=|{}.!])/g, "\\$1");
@@ -26,7 +26,7 @@ function escapeMarkdown(text: string): string {
 // ========== НОВА ФУНКЦІЯ ДЛЯ ПІДПИСУ ==========
 function getSignature(businessName?: string): string {
   const name = businessName ? ` (${escapeMarkdown(businessName)})` : "";
-  return `З повагою, AI-адміністратор ${name}`;
+  return `З повагою, AI-адміністратор ZapysUA ${name}`;
 }
 
 
@@ -268,12 +268,12 @@ export async function sendBookingReminder(
     id: options.masterId,
   });
   const signature = getSignature(options.businessName);
-  
+
   const text =
     type === "reminder_24h"
       ? `🔔 *Нагадування*\n\n` +
       `Завтра у вас запис: *${serviceName}*, ${dateTime}.\n` +
-      `Будь ласка, скасуйте або перенесіть, якщо щось змінилося.\n\n` +
+      `яЯкщо щось змінилося, будь ласка, скасуйте або перенесіть запис.\n\n` +
       `👉 [Мої записи](${clientLink})\n\n` +
       signature
       : `⏰ *Нагадування*\n\n` +

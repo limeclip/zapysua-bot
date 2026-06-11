@@ -412,6 +412,7 @@ export type GetAvailableSlotsOptions = {
   timeZone?: string;
   serviceId?: string;
   duration?: number;
+  slotStepMinutes?: number;
 };
 
 export async function getAvailableSlots(
@@ -483,11 +484,12 @@ export async function getAvailableSlots(
 
   const now = new Date();
   const slots: BookingSlot[] = [];
+  const step = options?.slotStepMinutes ?? duration;
 
   for (
     let minutes = dayStartMinutes;
     minutes + duration <= dayEndMinutes;
-    minutes += duration
+    minutes += step
   ) {
     const time = minutesToTime(minutes);
     const slotStart = zonedDateTimeToUtc(date, time, timeZone);

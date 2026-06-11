@@ -248,8 +248,21 @@ export type SessionStep =
   | "add_service_duration"
   | "add_service_description";
 
+export type AiSessionMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+export type PendingSlot = {
+  serviceId: string;
+  startTime: string;
+};
+
 export type SessionData = {
   step?: SessionStep;
+  masterId?: string;
+  history?: AiSessionMessage[];
+  pendingSlots?: PendingSlot[];
   onboarding?: {
     business_name?: string;
     category?: MasterCategory;
@@ -263,6 +276,6 @@ export type SessionData = {
   pendingDeleteServiceId?: string;
 };
 
-export interface BotContext extends Context {
+export interface BotContext extends Context, SessionFlavor<SessionData> {
   master?: Master;
 }
