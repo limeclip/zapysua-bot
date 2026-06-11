@@ -165,18 +165,17 @@ async function sendServicesWithBookButtons(
 
   const text = `Ось наші послуги:\n\n${formatServicesListText(context)}`;
   const keyboard = new InlineKeyboard();
+  const serviceKeys: { key: string; serviceId: string }[] = [];
 
-  context.services.forEach((service, index) => {
-    if (index > 0) keyboard.row();
-    keyboard.text(
-      `Записатися: ${service.name}`,
-      `ai_book_service|${masterId}|${service.id}`,
-    );
-  });
+  for (const service of context.services) {
+    const shortKey = Math.random().toString(36).substring(2, 8);
+    serviceKeys.push({ key: shortKey, serviceId: service.id });
+    keyboard.text(`Записатися: ${service.name}`, `ai_book_service|${shortKey}`);
+    keyboard.row();
+  }
 
-  await ctx.reply(text, {
-    reply_markup: context.services.length > 0 ? keyboard : undefined,
-  });
+  ctx.session.serviceKeyMap = serviceKeys;
+  await ctx.reply(text, { reply_markup: keyboard });
 }
 
 async function handleQuickAction(
@@ -188,9 +187,7 @@ async function handleQuickAction(
 }
 
 export function registerAiHandlers(bot: Bot<BotContext>): void {
-  // Обробник callback-запитів
   bot.callbackQuery(/^ai_/, async (ctx) => {
-    // Відповідаємо негайно, щоб уникнути помилки "query is too old"
     await ctx.answerCallbackQuery();
 
     const data = ctx.callbackQuery.data ?? "";
@@ -205,7 +202,6 @@ export function registerAiHandlers(bot: Bot<BotContext>): void {
       return;
     }
 
-    // Оновлюємо сесію (для історії)
     ctx.session.masterId = masterId;
 
     if (action === "ai_book") {
@@ -233,7 +229,13 @@ export function registerAiHandlers(bot: Bot<BotContext>): void {
     }
 
     if (action === "ai_book_service" && extra) {
-      const serviceId = extra;
+      const shortKey = extra;
+      const mapping = ctx.session.serviceKeyMap?.find(item => item.key === shortKey);
+      if (!mapping) {
+        await ctx.reply("Помилка: спробуйте ще раз.");
+        return;
+      }
+      const serviceId = mapping.serviceId;
       await handleQuickAction(ctx, masterId, `Хочу записатися на послугу з id ${serviceId}. Допоможи обрати дату та час.`);
       return;
     }
@@ -247,7 +249,6 @@ export function registerAiHandlers(bot: Bot<BotContext>): void {
     }
   });
 
-  // Обробник текстових повідомлень
   bot.on("message:text", async (ctx, next) => {
     const text = ctx.message.text.trim();
     console.log(`[AI] Отримано текст: "${text}"`);

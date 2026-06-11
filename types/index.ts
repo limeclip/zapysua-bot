@@ -261,7 +261,7 @@ export type PendingSlot = {
 export type SessionData = {
   step?: SessionStep;
   masterId?: string;
-  history?: AiSessionMessage[];
+  history?: AiSessionMessage[];      // ← твій оригінальний тип
   pendingSlots?: PendingSlot[];
   onboarding?: {
     business_name?: string;
@@ -274,6 +274,7 @@ export type SessionData = {
     duration_minutes?: number;
   };
   pendingDeleteServiceId?: string;
+  serviceKeyMap?: Array<{ key: string; serviceId: string }>; // ← тільки це нове
 };
 
 export interface BotContext extends Context, SessionFlavor<SessionData> {
