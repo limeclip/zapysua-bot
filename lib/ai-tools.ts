@@ -1,6 +1,17 @@
 import { findOverlappingBooking } from "@/lib/bookings-server";
-import { getAvailableSlots } from "@/lib/booking-utils";
-import { formatTime } from "@/lib/dates";
+import {
+  getAvailableSlots,
+  isStartTimeInAvailableSlots,
+} from "@/lib/booking-utils";
+import {
+  formatDateKey,
+  formatDateLongWithWeekday,
+  formatTime,
+} from "@/lib/dates";
+import {
+  formatWorkingDaysList,
+  isWorkingDay,
+} from "@/lib/working-hours";
 import {
   getMasterContext,
   invalidateMasterContextCache,
@@ -26,6 +37,48 @@ import type {
 import type { BookingWithService } from "@/types";
 
 const SLOT_STEP_MINUTES = 30;
+
+function getDayOffMessage(dateKey: string, context: MasterContext): string {
+  const dateFormatted = formatDateLongWithWeekday(
+    dateKey,
+    context.master.timezone,
+  );
+  const workingDays = formatWorkingDaysList(context.workingHours);
+  return `На жаль, ${dateFormatted} – вихідний день. Робочі дні: ${workingDays}. Будь ласка, оберіть іншу дату.`;
+}
+
+function formatAvailableSlotsMessage(
+  dateKey: string,
+  context: MasterContext,
+  slots: { label: string }[],
+): string {
+  const dateFormatted = formatDateLongWithWeekday(
+    dateKey,
+    context.master.timezone,
+  );
+  if (slots.length === 0) {
+    return `На ${dateFormatted} немає вільних слотів для цієї послуги.`;
+  }
+  const lines = slots.map((slot) => `• ${slot.label}`).join("\n");
+  return `Вільні слоти на ${dateFormatted}:\n\n${lines}`;
+}
+
+async function fetchAvailableSlotsForService(
+  masterId: string,
+  dateKey: string,
+  serviceId: string,
+  context: MasterContext,
+) {
+  const service = context.services.find((s) => s.id === serviceId);
+  if (!service) return [];
+
+  return getAvailableSlots(masterId, dateKey, service.duration_minutes, {
+    workingHours: context.workingHours,
+    timeZone: context.master.timezone,
+    serviceId,
+    slotStepMinutes: SLOT_STEP_MINUTES,
+  });
+}
 
 const ACTION_JSON_PATTERN =
   /\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*"action"\s*:\s*"[^"]+"(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}\s*$/;
@@ -238,15 +291,24 @@ export async function executeAiAction(params: {
       };
 
     case "show_slots": {
-      const slots = await getSlotsForAction(masterId, action, context);
-      if (slots.length === 0) {
+      if (!isWorkingDay(action.date, context.workingHours, context.master.timezone)) {
         return {
-          message: `На ${action.date} немає вільних слотів для цієї послуги.`,
+          message: getDayOffMessage(action.date, context),
         };
       }
-      const lines = slots.map((slot) => `• ${slot.label}`).join("\n");
+
+      const slots = await getSlotsForAction(masterId, action, context);
+      if (slots.length === 0) {
+        const dateFormatted = formatDateLongWithWeekday(
+          action.date,
+          context.master.timezone,
+        );
+        return {
+          message: `На ${dateFormatted} немає вільних слотів для цієї послуги.`,
+        };
+      }
       return {
-        message: `Вільні слоти на ${action.date}:\n\n${lines}`,
+        message: formatAvailableSlotsMessage(action.date, context, slots),
       };
     }
 
@@ -302,6 +364,56 @@ async function executeBookAction(
   const bookingStart = new Date(action.startTime);
   if (Number.isNaN(bookingStart.getTime())) {
     return { message: "Невірна дата або час." };
+  }
+
+  const dateKey = formatDateKey(bookingStart, context.master.timezone);
+  if (!isWorkingDay(dateKey, context.workingHours, context.master.timezone)) {
+    return { message: getDayOffMessage(dateKey, context) };
+  }
+
+  const availableSlots = await fetchAvailableSlotsForService(
+    masterId,
+    dateKey,
+    action.serviceId,
+    context,
+  );
+
+  if (!isStartTimeInAvailableSlots(availableSlots, action.startTime)) {
+    const slotLabels = availableSlots.map((slot) =>
+      formatTime(slot.start, context.master.timezone, {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    );
+    const dateFormatted = formatDateLongWithWeekday(
+      dateKey,
+      context.master.timezone,
+    );
+
+    if (slotLabels.length === 0) {
+      return {
+        message: `Цей час вже зайнятий або недоступний. На ${dateFormatted} немає вільних слотів. Оберіть іншу дату.`,
+      };
+    }
+
+    return {
+      message: `Цей час вже зайнятий або недоступний. Ось вільні слоти на ${dateFormatted}: ${slotLabels.join(", ")}. Оберіть один з них.`,
+    };
+  }
+
+  const { data: duplicateBooking } = await supabaseAdmin
+    .from("bookings")
+    .select("id")
+    .eq("master_id", masterId)
+    .eq("client_telegram_id", clientTelegramId)
+    .eq("booking_start", bookingStart.toISOString())
+    .in("status", ["pending", "confirmed"])
+    .maybeSingle();
+
+  if (duplicateBooking) {
+    return {
+      message: "У вас уже є запис на цей час. Дублікат не створено.",
+    };
   }
 
   const hasOverlap = await findOverlappingBooking(
@@ -468,6 +580,42 @@ async function executeRescheduleAction(
     return { message: "Невірна дата або час." };
   }
 
+  const dateKey = formatDateKey(bookingStart, context.master.timezone);
+  if (!isWorkingDay(dateKey, context.workingHours, context.master.timezone)) {
+    return { message: getDayOffMessage(dateKey, context) };
+  }
+
+  const serviceId = existing.service_id as string;
+  const availableSlots = await fetchAvailableSlotsForService(
+    masterId,
+    dateKey,
+    serviceId,
+    context,
+  );
+
+  if (!isStartTimeInAvailableSlots(availableSlots, action.newStartTime)) {
+    const slotLabels = availableSlots.map((slot) =>
+      formatTime(slot.start, context.master.timezone, {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    );
+    const dateFormatted = formatDateLongWithWeekday(
+      dateKey,
+      context.master.timezone,
+    );
+
+    if (slotLabels.length === 0) {
+      return {
+        message: `Цей час вже зайнятий або недоступний. На ${dateFormatted} немає вільних слотів.`,
+      };
+    }
+
+    return {
+      message: `Цей час вже зайнятий або недоступний. Ось вільні слоти на ${dateFormatted}: ${slotLabels.join(", ")}. Оберіть один з них.`,
+    };
+  }
+
   const durationMinutes = existing.duration_minutes as number;
   const hasOverlap = await findOverlappingBooking(
     masterId,
@@ -491,7 +639,6 @@ async function executeRescheduleAction(
 
   if (cancelError) throw cancelError;
 
-  const serviceId = existing.service_id as string;
   const { data: newBooking, error: createError } = await supabaseAdmin
     .from("bookings")
     .insert({

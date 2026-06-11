@@ -476,7 +476,7 @@ export async function getAvailableSlots(
     .from("bookings")
     .select("booking_start, duration_minutes")
     .eq("master_id", masterId)
-    .in("status", ["pending", "confirmed", "completed"])
+    .in("status", ["pending", "confirmed"])
     .gte("booking_start", rangeStart)
     .lte("booking_start", rangeEnd);
 

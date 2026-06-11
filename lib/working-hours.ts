@@ -1,4 +1,4 @@
-import { parseDateKey } from "@/lib/dates";
+import { parseDateKey, zonedDateTimeToUtc } from "@/lib/dates";
 import type { WorkingHours, WorkingHoursDay } from "@/types";
 
 export const WEEKDAYS: {
@@ -87,7 +87,26 @@ export function getWeekdayKeyInTimezone(
 export function isWorkingDay(
   dateKey: string,
   workingHours: WorkingHours,
+  timeZone?: string,
 ): boolean {
-  const weekday = getWeekdayKeyFromDate(parseDateKey(dateKey));
+  const weekday = timeZone
+    ? getWeekdayKeyInTimezone(
+        zonedDateTimeToUtc(dateKey, "12:00", timeZone),
+        timeZone,
+      )
+    : getWeekdayKeyFromDate(parseDateKey(dateKey));
   return workingHours[weekday].enabled;
+}
+
+export function formatWorkingDaysList(workingHours: WorkingHours): string {
+  const enabled = WEEKDAYS.filter(({ key }) => workingHours[key].enabled);
+  if (enabled.length === 0) {
+    return "графік не налаштовано";
+  }
+  return enabled
+    .map(({ key, label }) => {
+      const day = workingHours[key];
+      return `${label} ${day.start}–${day.end}`;
+    })
+    .join(", ");
 }

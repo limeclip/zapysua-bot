@@ -1,5 +1,14 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { parseWorkingHours, WEEKDAYS } from "@/lib/working-hours";
+import {
+  formatDateKey,
+  formatDateLongWithWeekday,
+  formatTime,
+} from "@/lib/dates";
+import {
+  parseWorkingHours,
+  formatWorkingDaysList,
+  WEEKDAYS,
+} from "@/lib/working-hours";
 import { getCategoryLabel } from "@/lib/master-category";
 import type {
   AiSettings,
@@ -90,12 +99,13 @@ export function formatClientBookingsForPrompt(
 
   return bookings
     .map((booking) => {
-      const when = new Intl.DateTimeFormat("uk-UA", {
-        timeZone,
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(new Date(booking.booking_start));
-      return `- id: ${booking.id}, ${when}, статус: ${booking.status}`;
+      const dateKey = formatDateKey(new Date(booking.booking_start), timeZone);
+      const whenDate = formatDateLongWithWeekday(dateKey, timeZone);
+      const whenTime = formatTime(booking.booking_start, timeZone, {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      return `- id: ${booking.id}, ${whenDate} о ${whenTime}, статус: ${booking.status}`;
     })
     .join("\n");
 }
@@ -209,24 +219,34 @@ export function buildDefaultSystemPrompt(
     context;
   const tone = toneOverride ?? getToneLabel(aiSettings.tone);
   const category = getCategoryLabel(master.category);
+  const timeZone = master.timezone;
   const workingHoursString = formatWorkingHoursString(
     workingHours,
-    master.timezone,
+    timeZone,
   );
+  const workingDaysList = formatWorkingDaysList(workingHours);
   const servicesList = formatServicesForPrompt(services);
   const bookingsList = formatClientBookingsForPrompt(
     clientBookings,
-    master.timezone,
+    timeZone,
   );
+  const todayKey = formatDateKey(new Date(), timeZone);
+  const todayFormatted = formatDateLongWithWeekday(todayKey, timeZone);
 
   return `Ти — AI-адміністратор студії "${master.business_name}". Категорія: ${category}.
 Ти допомагаєш клієнтам записатися на послуги, змінювати/скасовувати записи,
 відповідаєш на запитання про ціни, графік роботи, вільний час.
 
+Сьогодні: ${todayFormatted}.
+Усі дати в контексті вже містять правильний день тижня (понеділок — перший день тижня).
+Ніколи не обчислюй день тижня самостійно через JavaScript getDay() або інші алгоритми — покладайся лише на наданий формат «дата (день тижня)».
+
 Ось список послуг (назва - ціна (грн) - тривалість хв):
 ${servicesList}
 
-Робочі години: ${workingHoursString}.
+Робочі дні та години: ${workingDaysList}.
+Повний графік: ${workingHoursString}.
+Якщо клієнт обирає вихідний день — повідом, що це вихідний, і запропонуй робочі дні з графіку.
 
 Майбутні записи клієнта:
 ${bookingsList}
@@ -234,9 +254,9 @@ ${bookingsList}
 Твій тон: ${tone}.
 Відповідай коротко, ввічливо, українською мовою.
 Якщо клієнт хоче записатися — запитай послугу, дату, час (використовуй формат YYYY-MM-DDThh:mm:ssZ).
-Якщо клієнт питає вільні слоти — поверни реальні слоти (на основі робочих годин і зайнятих записів). Слоти генеруються з кроком 30 хвилин.
+Якщо клієнт питає вільні слоти — спочатку перевір, чи дата є робочим днем; якщо ні — скажи про вихідний. Інакше поверни реальні слоти (на основі робочих годин і зайнятих записів). Слоти генеруються з кроком 30 хвилин.
 Якщо клієнт просить перенести/скасувати запис — уточни, який саме (за датою або ID).
-Після того, як клієнт надав усі необхідні дані для запису (послуга, дата, час), надішли дію у форматі JSON (тільки в кінці відповіді, після тексту):
+Після того, як клієнт надав усі необхідні дані для запису (послуга, дата, час), надішли ОДНУ дію у форматі JSON (тільки в кінці відповіді, після тексту, лише один запис за раз):
 {"action":"book","serviceId":"uuid","startTime":"2025-06-12T15:00:00Z"}
 
 Для скасування: {"action":"cancel","bookingId":"uuid"}
@@ -245,5 +265,6 @@ ${bookingsList}
 Для показу вільних слотів на конкретну дату: {"action":"show_slots","serviceId":"uuid","date":"2025-06-12"}
 Якщо не впевнений — просто дай відповідь текстом без дії.
 
-Ніколи не вигадуй слоти, ID, дати. Якщо чогось не знаєш — скажи, що тобі потрібно уточнити.`;
+Ніколи не вигадуй слоти, ID, дати. Якщо чогось не знаєш — скажи, що тобі потрібно уточнити.
+Не створюй кілька записів одночасно — лише один запис за одну дію book.`;
 }

@@ -83,7 +83,7 @@ export async function processReminders(): Promise<{
 
       const { data: master } = await supabaseAdmin
         .from("masters")
-        .select("timezone, slug")
+        .select("timezone, slug, business_name") // ← додали business_name
         .eq("id", booking.master_id)
         .maybeSingle();
 
@@ -92,6 +92,7 @@ export async function processReminders(): Promise<{
         timeZone,
         masterSlug: master?.slug ?? null,
         masterId: booking.master_id,
+        businessName: master?.business_name ?? "",
       };
 
       if (

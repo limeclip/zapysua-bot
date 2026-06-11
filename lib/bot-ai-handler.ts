@@ -107,7 +107,8 @@ async function processAiMessage(
 
     if (
       aiResponse.action.action === "show_slots" &&
-      !actionResult.message.includes("немає вільних")
+      !actionResult.message.includes("немає вільних") &&
+      !actionResult.message.includes("вихідний день")
     ) {
       await sendSlotsKeyboard(ctx, masterId, aiResponse.action);
     }

@@ -16,6 +16,16 @@ const UK_MONTHS = [
 /** Понеділок — перший день тижня (uk-UA). */
 const UK_WEEKDAYS_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"] as const;
 
+const UK_WEEKDAYS_LONG = [
+  "неділя",
+  "понеділок",
+  "вівторок",
+  "середа",
+  "четвер",
+  "п'ятниця",
+  "субота",
+] as const;
+
 export function formatDateKey(date: Date, timeZone: string): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone,
@@ -89,6 +99,63 @@ export function formatTime(
 export function formatDateLong(key: string): string {
   const date = parseDateKey(key);
   return `${date.getDate()} ${UK_MONTHS[date.getMonth()].toLowerCase()} ${date.getFullYear()}`;
+}
+
+/** Назва дня тижня українською (понеділок = 1-й день тижня в календарі). */
+export function getWeekdayNameUA(
+  dateKey: string,
+  timeZone = "Europe/Kyiv",
+): string {
+  const date = zonedDateTimeToUtc(dateKey, "12:00", timeZone);
+  const formatted = new Intl.DateTimeFormat("uk-UA", {
+    timeZone,
+    weekday: "long",
+  }).format(date);
+  return formatted.charAt(0).toLowerCase() + formatted.slice(1);
+}
+
+/** ISO-номер дня тижня: понеділок = 1, …, неділя = 7. */
+export function getIsoWeekday(dateKey: string, timeZone = "Europe/Kyiv"): number {
+  const date = zonedDateTimeToUtc(dateKey, "12:00", timeZone);
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "short",
+  }).format(date);
+  const map: Record<string, number> = {
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+    Sun: 7,
+  };
+  return map[weekday] ?? 1;
+}
+
+/** Формат: «15 червня 2026 (понеділок)». */
+export function formatDateLongWithWeekday(
+  dateKey: string,
+  timeZone = "Europe/Kyiv",
+): string {
+  const date = zonedDateTimeToUtc(dateKey, "12:00", timeZone);
+  const datePart = new Intl.DateTimeFormat("uk-UA", {
+    timeZone,
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+  const weekday = getWeekdayNameUA(dateKey, timeZone);
+  return `${datePart} (${weekday})`;
+}
+
+/** Локальний номер дня тижня з parseDateKey (0 = неділя … 6 = субота). */
+export function getLocalWeekdayIndex(dateKey: string): number {
+  return parseDateKey(dateKey).getDay();
+}
+
+export function getLocalWeekdayNameUA(dateKey: string): string {
+  return UK_WEEKDAYS_LONG[getLocalWeekdayIndex(dateKey)];
 }
 
 export function formatMonthYear(date: Date): string {
