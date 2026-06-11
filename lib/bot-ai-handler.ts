@@ -25,13 +25,12 @@ function buildAiWelcomeText(businessName: string): string {
 }
 
 export function buildAiWelcomeKeyboard(master: Master): InlineKeyboard {
-  const mid = master.id;
   return new InlineKeyboard()
-    .text("Записатися", `ai_book|${mid}`)
-    .text("Послуги", `ai_services|${mid}`)
+    .text("Записатися", `ai_book|${master.id}`)
+    .text("Послуги", `ai_services|${master.id}`)
     .row()
-    .text("Мої записи", `ai_my_bookings|${mid}`)
-    .text("Допомога", `ai_help|${mid}`)
+    .text("Мої записи", `ai_my_bookings|${master.id}`)
+    .text("Допомога", `ai_help|${master.id}`)
     .row()
     .webApp("Відкрити Mini App", getClientAppUrl(master));
 }
@@ -40,10 +39,8 @@ export async function sendAiWelcome(
   ctx: BotContext,
   master: Master,
 ): Promise<void> {
-  // Все одно зберігаємо в сесію для текстових повідомлень
   ctx.session.masterId = master.id;
   ctx.session.history = [];
-  console.log(`[AI] Сесія збережена: masterId=${ctx.session.masterId}`);
 
   const text = buildAiWelcomeText(master.business_name);
   const keyboard = buildAiWelcomeKeyboard(master);
@@ -150,7 +147,6 @@ async function sendSlotsKeyboard(
   const keyboard = new InlineKeyboard();
   slots.slice(0, 12).forEach((slot, index) => {
     if (index > 0 && index % 3 === 0) keyboard.row();
-    // додаємо masterId в дані кнопки
     keyboard.text(slot.label, `ai_slot|${masterId}|${index}`);
   });
 
@@ -194,6 +190,7 @@ async function handleQuickAction(
 export function registerAiHandlers(bot: Bot<BotContext>): void {
   // Обробник callback-запитів
   bot.callbackQuery(/^ai_/, async (ctx) => {
+    // Відповідаємо негайно, щоб уникнути помилки "query is too old"
     await ctx.answerCallbackQuery();
 
     const data = ctx.callbackQuery.data ?? "";
@@ -203,8 +200,8 @@ export function registerAiHandlers(bot: Bot<BotContext>): void {
     const extra = parts[2];
 
     if (!masterId) {
-      console.log("[AI] Немає masterId в callback data");
-      await ctx.reply("Спочатку перейдіть за посиланням майстра (/start slug).");
+      console.error("[AI] Немає masterId в callback data");
+      await ctx.reply("Помилка: не вдалося визначити майстра.");
       return;
     }
 
@@ -250,7 +247,7 @@ export function registerAiHandlers(bot: Bot<BotContext>): void {
     }
   });
 
-  // Обробник текстових повідомлень – залишається, але тепер покладається на сесію
+  // Обробник текстових повідомлень
   bot.on("message:text", async (ctx, next) => {
     const text = ctx.message.text.trim();
     console.log(`[AI] Отримано текст: "${text}"`);
