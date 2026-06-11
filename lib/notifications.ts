@@ -185,8 +185,7 @@ export async function notifyClientBookingStatusChange(
   const { serviceName, dateTime, clientLink } = buildContext(params);
   const masterName = escapeMarkdown(params.master.business_name);
   const safeService = escapeMarkdown(serviceName);
-  const aiLink = `https://t.me/ZapysUaBot?start=${params.master.slug}`; // ← slug тут
-  const signature = getSignature(params.master.business_name);
+  const signature = getSignature(params.master.business_name); // ← ВИПРАВЛЕНО
 
   let text: string;
   let logType: NotificationType | null = null;
@@ -198,7 +197,6 @@ export async function notifyClientBookingStatusChange(
         `Ви записалися на *${safeService}*, ${dateTime}.\n` +
         `Очікуйте підтвердження від майстра.\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        `💬 [Поговорити з AI-адміністратором](${aiLink})\n\n` +
         signature;
       break;
     case "created_confirmed":
@@ -206,7 +204,6 @@ export async function notifyClientBookingStatusChange(
         `✅ *Запис підтверджено*\n\n` +
         `Ваш запис на *${safeService}*, ${dateTime} підтверджено майстром *${masterName}*!\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        `💬 [Поговорити з AI-адміністратором](${aiLink})\n\n` +
         signature;
       break;
     case "confirmed":
@@ -215,7 +212,6 @@ export async function notifyClientBookingStatusChange(
         `Ваш запис на *${safeService}*, ${dateTime} підтверджено!\n` +
         `Ми нагадаємо про візит за 24 години.\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        `💬 [Поговорити з AI-адміністратором](${aiLink})\n\n` +
         signature;
       logType = "confirmation";
       break;
@@ -225,7 +221,6 @@ export async function notifyClientBookingStatusChange(
         `Ваш запис на *${safeService}*, ${dateTime} скасовано майстром.\n` +
         `Будь ласка, зверніться до майстра для уточнення.\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        `💬 [Поговорити з AI-адміністратором](${aiLink})\n\n` +
         signature;
       break;
     case "no_show":
@@ -234,7 +229,6 @@ export async function notifyClientBookingStatusChange(
         `На жаль, ви не з'явилися на запис *${safeService}*, ${dateTime}.\n` +
         `Якщо це помилка, зв'яжіться з майстром.\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        `💬 [Поговорити з AI-адміністратором](${aiLink})\n\n` +
         signature;
       break;
     case "rescheduled":
@@ -243,7 +237,6 @@ export async function notifyClientBookingStatusChange(
         `Новий час: *${safeService}*, ${dateTime}.\n` +
         `Очікуйте підтвердження від майстра.\n\n` +
         `👉 [Мої записи](${clientLink})\n\n` +
-        `💬 [Поговорити з AI-адміністратором](${aiLink})\n\n` +
         signature;
       break;
     default:

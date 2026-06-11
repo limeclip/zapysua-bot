@@ -41,6 +41,7 @@ export async function sendAiWelcome(
 ): Promise<void> {
   ctx.session.masterId = master.id;
   ctx.session.history = [];
+  console.log(`[AI] Сесія збережена: masterId=${ctx.session.masterId}`);
 
   const text = buildAiWelcomeText(master.business_name);
   const keyboard = buildAiWelcomeKeyboard(master);
@@ -50,10 +51,9 @@ export async function sendAiWelcome(
       caption: text,
       reply_markup: keyboard,
     });
-    return;
+  } else {
+    await ctx.reply(text, { reply_markup: keyboard });
   }
-
-  await ctx.reply(text, { reply_markup: keyboard });
 }
 
 function getClientName(ctx: BotContext): string {
@@ -82,44 +82,51 @@ async function processAiMessage(
   const telegramId = ctx.from?.id;
   const history = ctx.session.history ?? [];
 
-  const aiResponse = await generateAIResponse(
-    masterId,
-    userMessage,
-    history,
-    telegramId?.toString(),
-  );
+  console.log(`[AI] Обробка повідомлення: "${userMessage}" для masterId=${masterId}`);
 
-  let replyText = aiResponse.reply;
-
-  if (aiResponse.action) {
-    const actionResult = await executeAiAction({
+  try {
+    const aiResponse = await generateAIResponse(
       masterId,
-      action: aiResponse.action,
-      clientTelegramId: telegramId,
-      clientName: getClientName(ctx),
-    });
+      userMessage,
+      history,
+      telegramId?.toString(),
+    );
 
-    if (actionResult.message) {
-      replyText = replyText
-        ? `${replyText}\n\n${actionResult.message}`
-        : actionResult.message;
+    let replyText = aiResponse.reply;
+
+    if (aiResponse.action) {
+      const actionResult = await executeAiAction({
+        masterId,
+        action: aiResponse.action,
+        clientTelegramId: telegramId,
+        clientName: getClientName(ctx),
+      });
+
+      if (actionResult.message) {
+        replyText = replyText
+          ? `${replyText}\n\n${actionResult.message}`
+          : actionResult.message;
+      }
+
+      if (
+        aiResponse.action.action === "show_slots" &&
+        !actionResult.message.includes("немає вільних") &&
+        !actionResult.message.includes("вихідний день")
+      ) {
+        await sendSlotsKeyboard(ctx, masterId, aiResponse.action);
+      }
     }
 
-    if (
-      aiResponse.action.action === "show_slots" &&
-      !actionResult.message.includes("немає вільних") &&
-      !actionResult.message.includes("вихідний день")
-    ) {
-      await sendSlotsKeyboard(ctx, masterId, aiResponse.action);
+    if (!replyText.trim()) {
+      replyText = "Готово!";
     }
-  }
 
-  if (!replyText.trim()) {
-    replyText = "Готово!";
+    await ctx.reply(replyText);
+    pushHistory(ctx.session, userMessage, replyText);
+  } catch (error) {
+    console.error("[AI] Помилка в processAiMessage:", error);
+    await ctx.reply("Вибачте, сталася помилка. Спробуйте пізніше.");
   }
-
-  await ctx.reply(replyText);
-  pushHistory(ctx.session, userMessage, replyText);
 }
 
 async function sendSlotsKeyboard(
@@ -127,10 +134,7 @@ async function sendSlotsKeyboard(
   masterId: string,
   action: AiActionShowSlots,
 ): Promise<void> {
-  const context = await getMasterContext(
-    masterId,
-    ctx.from?.id?.toString(),
-  );
+  const context = await getMasterContext(masterId, ctx.from?.id?.toString());
   if (!context) return;
 
   const slots = await getSlotsForAction(masterId, action, context);
@@ -143,9 +147,7 @@ async function sendSlotsKeyboard(
 
   const keyboard = new InlineKeyboard();
   slots.slice(0, 12).forEach((slot, index) => {
-    if (index > 0 && index % 3 === 0) {
-      keyboard.row();
-    }
+    if (index > 0 && index % 3 === 0) keyboard.row();
     keyboard.text(slot.label, `ai_slot|${index}`);
   });
 
@@ -156,10 +158,7 @@ async function sendServicesWithBookButtons(
   ctx: BotContext,
   masterId: string,
 ): Promise<void> {
-  const context = await getMasterContext(
-    masterId,
-    ctx.from?.id?.toString(),
-  );
+  const context = await getMasterContext(masterId, ctx.from?.id?.toString());
   if (!context) {
     await ctx.reply("Майстра не знайдено.");
     return;
@@ -170,10 +169,7 @@ async function sendServicesWithBookButtons(
 
   context.services.forEach((service, index) => {
     if (index > 0) keyboard.row();
-    keyboard.text(
-      `Записатися: ${service.name}`,
-      `ai_book_service:${service.id}`,
-    );
+    keyboard.text(`Записатися: ${service.name}`, `ai_book_service:${service.id}`);
   });
 
   await ctx.reply(text, {
@@ -190,11 +186,13 @@ async function handleQuickAction(
 }
 
 export function registerAiHandlers(bot: Bot<BotContext>): void {
+  // Обробник callback-запитів
   bot.callbackQuery(/^ai_/, async (ctx) => {
     await ctx.answerCallbackQuery();
 
     const masterId = ctx.session.masterId;
     if (!masterId) {
+      console.log("[AI] Немає masterId в сесії для callback");
       await ctx.reply("Спочатку перейдіть за посиланням майстра (/start slug).");
       return;
     }
@@ -202,11 +200,7 @@ export function registerAiHandlers(bot: Bot<BotContext>): void {
     const data = ctx.callbackQuery.data ?? "";
 
     if (data === "ai_book") {
-      await handleQuickAction(
-        ctx,
-        masterId,
-        "Хочу записатися на послугу. Допоможи мені обрати послугу, дату та час.",
-      );
+      await handleQuickAction(ctx, masterId, "Хочу записатися на послугу. Допоможи мені обрати послугу, дату та час.");
       return;
     }
 
@@ -216,10 +210,7 @@ export function registerAiHandlers(bot: Bot<BotContext>): void {
     }
 
     if (data === "ai_my_bookings") {
-      const context = await getMasterContext(
-        masterId,
-        ctx.from?.id?.toString(),
-      );
+      const context = await getMasterContext(masterId, ctx.from?.id?.toString());
       const text = context
         ? formatClientBookingsText(context)
         : "У вас немає майбутніх записів.";
@@ -234,11 +225,7 @@ export function registerAiHandlers(bot: Bot<BotContext>): void {
 
     if (data.startsWith("ai_book_service:")) {
       const serviceId = data.replace("ai_book_service:", "");
-      await handleQuickAction(
-        ctx,
-        masterId,
-        `Хочу записатися на послугу з id ${serviceId}. Допоможи обрати дату та час.`,
-      );
+      await handleQuickAction(ctx, masterId, `Хочу записатися на послугу з id ${serviceId}. Допоможи обрати дату та час.`);
       return;
     }
 
@@ -246,29 +233,32 @@ export function registerAiHandlers(bot: Bot<BotContext>): void {
       const index = Number.parseInt(data.replace("ai_slot|", ""), 10);
       const slot = ctx.session.pendingSlots?.[index];
       if (!slot) return;
-      await handleQuickAction(
-        ctx,
-        masterId,
-        `Запиши мене на послугу ${slot.serviceId} на ${slot.startTime}`,
-      );
+      await handleQuickAction(ctx, masterId, `Запиши мене на послугу ${slot.serviceId} на ${slot.startTime}`);
     }
   });
 
+  // ОБРОБНИК ТЕКСТОВИХ ПОВІДОМЛЕНЬ – ВИПРАВЛЕНИЙ
   bot.on("message:text", async (ctx, next) => {
     const text = ctx.message.text.trim();
+    console.log(`[AI] Отримано текст: "${text}"`);
+
     if (text.startsWith("/")) {
       return next();
     }
 
+    // Якщо користувач майстер – пропускаємо
     if (ctx.master) {
+      console.log("[AI] Користувач є майстром, пропускаємо");
       return next();
     }
 
     const masterId = ctx.session.masterId;
     if (!masterId) {
+      console.log("[AI] Немає masterId в сесії, пропускаємо");
       return next();
     }
 
+    console.log(`[AI] Передаємо повідомлення в AI для masterId=${masterId}`);
     await processAiMessage(ctx, masterId, text);
   });
 }
