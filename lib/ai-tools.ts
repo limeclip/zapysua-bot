@@ -2,6 +2,7 @@ import { findOverlappingBooking } from "@/lib/bookings-server";
 import {
   getAvailableSlots,
   isStartTimeInAvailableSlots,
+  resolveBookingStartTime,
 } from "@/lib/booking-utils";
 import {
   formatDateKey,
@@ -39,6 +40,13 @@ import type { BookingWithService } from "@/types";
 
 const ACTION_JSON_PATTERN =
   /\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*"action"\s*:\s*"[^"]+"(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}\s*$/;
+
+function logAiAction(
+  tag: "SHOW_SLOTS" | "BOOK" | "CONFIRM_BOOKING",
+  data: Record<string, unknown>,
+): void {
+  console.log(`[${tag}]`, JSON.stringify(data));
+}
 
 function getDayOffMessage(dateKey: string, context: MasterContext): string {
   const dateFormatted = formatDateLongWithWeekday(
@@ -264,6 +272,13 @@ export async function executeAiAction(params: {
       }
 
       const slots = await getAvailableSlots(masterId, action.date, action.serviceId);
+      logAiAction("SHOW_SLOTS", {
+        masterId,
+        serviceId: action.serviceId,
+        date: action.date,
+        timezone: context.master.timezone,
+        availableSlots: slots,
+      });
       return {
         message: formatAvailableSlotsMessage(
           action.date,
@@ -322,12 +337,10 @@ async function prepareBookAction(
     return { message: "Послугу не знайдено." };
   }
 
-  const bookingStart = new Date(action.startTime);
-  if (Number.isNaN(bookingStart.getTime())) {
-    return { message: "Невірна дата або час." };
-  }
+  const dateKey = /^\d{4}-\d{2}-\d{2}$/.test(action.startTime)
+    ? action.startTime
+    : formatDateKey(new Date(action.startTime), context.master.timezone);
 
-  const dateKey = formatDateKey(bookingStart, context.master.timezone);
   if (!isWorkingDay(dateKey, context.workingHours, context.master.timezone)) {
     return { message: getDayOffMessage(dateKey, context) };
   }
@@ -338,15 +351,34 @@ async function prepareBookAction(
     action.serviceId,
   );
 
-  if (!isStartTimeInAvailableSlots(availableSlots, action.startTime)) {
+  const resolvedStartTime = resolveBookingStartTime(
+    dateKey,
+    context.master.timezone,
+    action.startTime,
+    availableSlots,
+  );
+
+  logAiAction("BOOK", {
+    masterId,
+    serviceId: action.serviceId,
+    date: dateKey,
+    timezone: context.master.timezone,
+    startTime: action.startTime,
+    bookingStart: resolvedStartTime,
+    availableSlots,
+  });
+
+  if (!resolvedStartTime) {
     const dateFormatted = formatDateLongWithWeekday(
       dateKey,
       context.master.timezone,
     );
     return {
-      message: `Цей час (${formatTime(action.startTime, context.master.timezone)}) уже зайнятий або недоступний на ${dateFormatted}. Напишіть, якщо хочете побачити актуальні вільні слоти.`,
+      message: `Цей час недоступний на ${dateFormatted}. Напишіть, якщо хочете побачити актуальні вільні слоти.`,
     };
   }
+
+  const bookingStart = new Date(resolvedStartTime);
 
   const phone = await resolveClientPhone(masterId, clientTelegramId);
   if (!phone) {
@@ -367,7 +399,7 @@ async function prepareBookAction(
     pendingBooking: {
       masterId,
       serviceId: action.serviceId,
-      startTime: bookingStart.toISOString(),
+      startTime: resolvedStartTime,
       clientName: name,
       clientPhone: phone,
     },
@@ -400,18 +432,30 @@ export async function confirmPendingBooking(params: {
     return { message: "Послугу не знайдено." };
   }
 
-  const bookingStart = new Date(startTime);
-  if (Number.isNaN(bookingStart.getTime())) {
-    return { message: "Невірна дата або час." };
-  }
-
-  const dateKey = formatDateKey(bookingStart, context.master.timezone);
+  const dateKey = formatDateKey(new Date(startTime), context.master.timezone);
   if (!isWorkingDay(dateKey, context.workingHours, context.master.timezone)) {
     return { message: getDayOffMessage(dateKey, context) };
   }
 
   const availableSlots = await getAvailableSlots(masterId, dateKey, serviceId);
-  if (!isStartTimeInAvailableSlots(availableSlots, startTime)) {
+  const resolvedStartTime = resolveBookingStartTime(
+    dateKey,
+    context.master.timezone,
+    startTime,
+    availableSlots,
+  );
+
+  logAiAction("CONFIRM_BOOKING", {
+    masterId,
+    serviceId,
+    date: dateKey,
+    timezone: context.master.timezone,
+    startTime,
+    bookingStart: resolvedStartTime,
+    availableSlots,
+  });
+
+  if (!resolvedStartTime) {
     const dateFormatted = formatDateLongWithWeekday(
       dateKey,
       context.master.timezone,
@@ -419,6 +463,11 @@ export async function confirmPendingBooking(params: {
     return {
       message: `На жаль, цей час уже зайнятий. На ${dateFormatted} можу показати актуальні вільні слоти — напишіть дату.`,
     };
+  }
+
+  const bookingStart = new Date(resolvedStartTime);
+  if (Number.isNaN(bookingStart.getTime())) {
+    return { message: "Невірна дата або час." };
   }
 
   const { data: duplicateBooking } = await supabaseAdmin
@@ -523,10 +572,9 @@ export async function confirmPendingBooking(params: {
     }),
   );
 
-  const when = formatTime(
+  const when = formatDateTime(
     bookingStart.toISOString(),
     masterInfo.timezone,
-    { dateStyle: "medium", timeStyle: "short" },
   );
 
   invalidateMasterContextCache(masterId);
@@ -613,8 +661,14 @@ async function executeRescheduleAction(
 
   const serviceId = existing.service_id as string;
   const availableSlots = await getAvailableSlots(masterId, dateKey, serviceId);
+  const resolvedStartTime = resolveBookingStartTime(
+    dateKey,
+    context.master.timezone,
+    action.newStartTime,
+    availableSlots,
+  );
 
-  if (!isStartTimeInAvailableSlots(availableSlots, action.newStartTime)) {
+  if (!resolvedStartTime) {
     const dateFormatted = formatDateLongWithWeekday(
       dateKey,
       context.master.timezone,
@@ -624,10 +678,12 @@ async function executeRescheduleAction(
     };
   }
 
+  const resolvedBookingStart = new Date(resolvedStartTime);
+
   const durationMinutes = existing.duration_minutes as number;
   const hasOverlap = await findOverlappingBooking(
     masterId,
-    bookingStart,
+    resolvedBookingStart,
     durationMinutes,
     action.bookingId,
   );
@@ -656,7 +712,7 @@ async function executeRescheduleAction(
       client_name: existing.client_name,
       client_phone: existing.client_phone,
       service_id: serviceId,
-      booking_start: bookingStart.toISOString(),
+      booking_start: resolvedStartTime,
       duration_minutes: durationMinutes,
       status: "pending",
       notes: "перенесено через AI-адміністратора",
@@ -666,10 +722,7 @@ async function executeRescheduleAction(
 
   if (createError) throw createError;
 
-  const when = formatDateTime(
-    bookingStart.toISOString(),
-    context.master.timezone,
-  );
+  const when = formatDateTime(resolvedStartTime, context.master.timezone);
 
   invalidateMasterContextCache(masterId);
 

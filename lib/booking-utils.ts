@@ -1,8 +1,7 @@
 import {
+  getDayRangeIso,
   minutesToTime,
   parseTimeToMinutes,
-  toIsoRangeEnd,
-  toIsoRangeStart,
   zonedDateTimeToUtc,
 } from "@/lib/dates";
 import { supabaseAdmin } from "@/lib/supabase/server";
@@ -10,33 +9,25 @@ import {
   getWeekdayKeyInTimezone,
   parseWorkingHours,
 } from "@/lib/working-hours";
+import {
+  isSlotStartWithinBooking,
+  isStartTimeInAvailableSlots,
+  resolveBookingStartTime,
+  type AvailableSlot,
+} from "@/lib/booking-time";
 import type { WorkingHours } from "@/types";
 
-export type AvailableSlot = {
-  /** Час у форматі HH:MM (часовий пояс майстра). */
-  time: string;
-  /** ISO UTC для створення запису. */
-  startTime: string;
-};
+export type { AvailableSlot } from "@/lib/booking-time";
+export {
+  isStartTimeInAvailableSlots,
+  resolveBookingStartTime,
+} from "@/lib/booking-time";
 
-function isSlotStartWithinBooking(
-  slotStart: Date,
-  bookingStart: Date,
-  durationMinutes: number,
-): boolean {
-  const bookingEnd = new Date(
-    bookingStart.getTime() + durationMinutes * 60 * 1000,
-  );
-  return slotStart >= bookingStart && slotStart < bookingEnd;
-}
-
-export function isStartTimeInAvailableSlots(
-  slots: AvailableSlot[],
-  startTime: string,
-): boolean {
-  const target = new Date(startTime).getTime();
-  if (Number.isNaN(target)) return false;
-  return slots.some((slot) => new Date(slot.startTime).getTime() === target);
+function logBookingDebug(
+  tag: "SHOW_SLOTS" | "BOOK" | "CONFIRM_BOOKING",
+  data: Record<string, unknown>,
+): void {
+  console.log(`[${tag}]`, JSON.stringify(data));
 }
 
 export async function getAvailableSlots(
@@ -75,15 +66,24 @@ export async function getAvailableSlots(
     timeZone,
   );
   const dayConfig = workingHours[weekday];
-  if (!dayConfig.enabled) return [];
+  if (!dayConfig?.enabled) {
+    logBookingDebug("SHOW_SLOTS", {
+      masterId,
+      serviceId,
+      date,
+      timezone: timeZone,
+      weekday,
+      availableSlots: [],
+      reason: "day_off",
+    });
+    return [];
+  }
 
   const dayStartMinutes = parseTimeToMinutes(dayConfig.start);
   const dayEndMinutes = parseTimeToMinutes(dayConfig.end);
   if (dayEndMinutes - dayStartMinutes < durationMinutes) return [];
 
-  const dateObj = zonedDateTimeToUtc(date, "00:00", timeZone);
-  const rangeStart = toIsoRangeStart(dateObj, timeZone);
-  const rangeEnd = toIsoRangeEnd(dateObj, timeZone);
+  const { start: rangeStart, end: rangeEnd } = getDayRangeIso(date, timeZone);
 
   const { data: bookings, error: bookingsError } = await supabaseAdmin
     .from("bookings")
@@ -150,6 +150,15 @@ export async function getAvailableSlots(
       });
     }
   }
+
+  logBookingDebug("SHOW_SLOTS", {
+    masterId,
+    serviceId,
+    date,
+    timezone: timeZone,
+    durationMinutes,
+    availableSlots: slots,
+  });
 
   return slots;
 }

@@ -14,6 +14,16 @@ export const WEEKDAYS: {
   { key: "sunday", label: "Неділя" },
 ];
 
+const NUMERIC_DAY_KEYS: Record<string, keyof WorkingHours> = {
+  "1": "monday",
+  "2": "tuesday",
+  "3": "wednesday",
+  "4": "thursday",
+  "5": "friday",
+  "6": "saturday",
+  "7": "sunday",
+};
+
 const defaultDay = (): WorkingHoursDay => ({
   enabled: false,
   start: "09:00",
@@ -32,6 +42,14 @@ export function defaultWorkingHours(): WorkingHours {
   };
 }
 
+function normalizeDayConfig(raw: Record<string, unknown>): WorkingHoursDay {
+  return {
+    enabled: Boolean(raw.enabled ?? raw.start),
+    start: String(raw.start ?? "09:00"),
+    end: String(raw.end ?? "18:00"),
+  };
+}
+
 export function parseWorkingHours(
   raw: Record<string, unknown> | null | undefined,
 ): WorkingHours {
@@ -41,12 +59,14 @@ export function parseWorkingHours(
   for (const { key } of WEEKDAYS) {
     const day = raw[key];
     if (day && typeof day === "object" && day !== null) {
-      const d = day as Record<string, unknown>;
-      base[key] = {
-        enabled: Boolean(d.enabled ?? d.start),
-        start: String(d.start ?? "09:00"),
-        end: String(d.end ?? "18:00"),
-      };
+      base[key] = normalizeDayConfig(day as Record<string, unknown>);
+    }
+  }
+
+  for (const [numericKey, weekdayKey] of Object.entries(NUMERIC_DAY_KEYS)) {
+    const day = raw[numericKey];
+    if (day && typeof day === "object" && day !== null) {
+      base[weekdayKey] = normalizeDayConfig(day as Record<string, unknown>);
     }
   }
 
@@ -87,15 +107,13 @@ export function getWeekdayKeyInTimezone(
 export function isWorkingDay(
   dateKey: string,
   workingHours: WorkingHours,
-  timeZone?: string,
+  timeZone = "Europe/Kyiv",
 ): boolean {
-  const weekday = timeZone
-    ? getWeekdayKeyInTimezone(
-        zonedDateTimeToUtc(dateKey, "12:00", timeZone),
-        timeZone,
-      )
-    : getWeekdayKeyFromDate(parseDateKey(dateKey));
-  return workingHours[weekday].enabled;
+  const weekday = getWeekdayKeyInTimezone(
+    zonedDateTimeToUtc(dateKey, "12:00", timeZone),
+    timeZone,
+  );
+  return workingHours[weekday]?.enabled ?? false;
 }
 
 export function formatWorkingDaysList(workingHours: WorkingHours): string {

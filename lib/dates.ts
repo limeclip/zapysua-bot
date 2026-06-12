@@ -26,13 +26,43 @@ const UK_WEEKDAYS_LONG = [
   "субота",
 ] as const;
 
-export function formatDateKey(date: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
+type ZonedParts = {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+};
+
+function getZonedParts(date: Date, timeZone: string): ZonedParts {
+  const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(date);
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+  const parts = formatter.formatToParts(date);
+  const read = (type: Intl.DateTimeFormatPartTypes): number =>
+    Number(parts.find((part) => part.type === type)?.value ?? 0);
+
+  return {
+    year: read("year"),
+    month: read("month"),
+    day: read("day"),
+    hour: read("hour"),
+    minute: read("minute"),
+    second: read("second"),
+  };
+}
+
+export function formatDateKey(date: Date, timeZone: string): string {
+  const parts = getZonedParts(date, timeZone);
+  return `${String(parts.year).padStart(4, "0")}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
 }
 
 export function parseDateKey(key: string): Date {
@@ -40,17 +70,52 @@ export function parseDateKey(key: string): Date {
   return new Date(y, m - 1, d);
 }
 
+export function zonedDateTimeToUtc(
+  dateKey: string,
+  time: string,
+  timeZone: string,
+): Date {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+
+  let utcGuess = Date.UTC(year, month - 1, day, hour, minute, 0);
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const parts = getZonedParts(new Date(utcGuess), timeZone);
+    const actualUtc = Date.UTC(
+      parts.year,
+      parts.month - 1,
+      parts.day,
+      parts.hour,
+      parts.minute,
+      parts.second,
+    );
+    const wantedUtc = Date.UTC(year, month - 1, day, hour, minute, 0);
+    utcGuess += wantedUtc - actualUtc;
+  }
+
+  return new Date(utcGuess);
+}
+
 export function startOfDayInTimezone(date: Date, timeZone: string): Date {
   const key = formatDateKey(date, timeZone);
-  return parseDateKey(key);
+  return zonedDateTimeToUtc(key, "00:00", timeZone);
 }
 
 export function endOfDayInTimezone(date: Date, timeZone: string): Date {
-  const start = startOfDayInTimezone(date, timeZone);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-  end.setMilliseconds(end.getMilliseconds() - 1);
-  return end;
+  const key = formatDateKey(date, timeZone);
+  const nextKey = addDays(parseDateKey(key), 1);
+  const nextKeyStr = `${nextKey.getFullYear()}-${String(nextKey.getMonth() + 1).padStart(2, "0")}-${String(nextKey.getDate()).padStart(2, "0")}`;
+  return new Date(zonedDateTimeToUtc(nextKeyStr, "00:00", timeZone).getTime() - 1);
+}
+
+export function getDayRangeIso(
+  dateKey: string,
+  timeZone: string,
+): { start: string; end: string } {
+  const start = zonedDateTimeToUtc(dateKey, "00:00", timeZone);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
+  return { start: start.toISOString(), end: end.toISOString() };
 }
 
 export function addDays(date: Date, days: number): Date {
@@ -60,7 +125,8 @@ export function addDays(date: Date, days: number): Date {
 }
 
 export function startOfWeek(date: Date, timeZone: string): Date {
-  const local = startOfDayInTimezone(date, timeZone);
+  const key = formatDateKey(date, timeZone);
+  const local = parseDateKey(key);
   const day = local.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   return addDays(local, diff);
@@ -83,23 +149,15 @@ export function endOfMonth(date: Date, timeZone: string): Date {
   return next;
 }
 
-export function formatTime(
-  iso: string,
-  timeZone: string,
-  options?: Intl.DateTimeFormatOptions,
-): string {
+export function formatTime(iso: string, timeZone: string): string {
   return new Intl.DateTimeFormat("uk-UA", {
     timeZone,
     hour: "2-digit",
     minute: "2-digit",
-    ...options,
   }).format(new Date(iso));
 }
 
-export function formatDateTime(
-  iso: string,
-  timeZone: string,
-): string {
+export function formatDateTime(iso: string, timeZone: string): string {
   return new Intl.DateTimeFormat("uk-UA", {
     timeZone,
     dateStyle: "medium",
@@ -112,7 +170,6 @@ export function formatDateLong(key: string): string {
   return `${date.getDate()} ${UK_MONTHS[date.getMonth()].toLowerCase()} ${date.getFullYear()}`;
 }
 
-/** Назва дня тижня українською (понеділок = 1-й день тижня в календарі). */
 export function getWeekdayNameUA(
   dateKey: string,
   timeZone = "Europe/Kyiv",
@@ -125,7 +182,6 @@ export function getWeekdayNameUA(
   return formatted.charAt(0).toLowerCase() + formatted.slice(1);
 }
 
-/** ISO-номер дня тижня: понеділок = 1, …, неділя = 7. */
 export function getIsoWeekday(dateKey: string, timeZone = "Europe/Kyiv"): number {
   const date = zonedDateTimeToUtc(dateKey, "12:00", timeZone);
   const weekday = new Intl.DateTimeFormat("en-US", {
@@ -144,7 +200,6 @@ export function getIsoWeekday(dateKey: string, timeZone = "Europe/Kyiv"): number
   return map[weekday] ?? 1;
 }
 
-/** Формат: «15 червня 2026 (понеділок)». */
 export function formatDateLongWithWeekday(
   dateKey: string,
   timeZone = "Europe/Kyiv",
@@ -160,7 +215,6 @@ export function formatDateLongWithWeekday(
   return `${datePart} (${weekday})`;
 }
 
-/** Локальний номер дня тижня з parseDateKey (0 = неділя … 6 = субота). */
 export function getLocalWeekdayIndex(dateKey: string): number {
   return parseDateKey(dateKey).getDay();
 }
@@ -193,11 +247,13 @@ export function getCalendarGrid(month: Date): {
 }
 
 export function toIsoRangeStart(date: Date, timeZone: string): string {
-  return startOfDayInTimezone(date, timeZone).toISOString();
+  const key = formatDateKey(date, timeZone);
+  return zonedDateTimeToUtc(key, "00:00", timeZone).toISOString();
 }
 
 export function toIsoRangeEnd(date: Date, timeZone: string): string {
-  return endOfDayInTimezone(date, timeZone).toISOString();
+  const key = formatDateKey(date, timeZone);
+  return getDayRangeIso(key, timeZone).end;
 }
 
 export function formatBookingDateTime(
@@ -230,24 +286,6 @@ export function formatBookingDateTime(
   return `${time} – ${day}.${month}.${bookingDayKey.slice(0, 4)}`;
 }
 
-export function getTimezoneOffsetMs(date: Date, timeZone: string): number {
-  const utc = new Date(date.toLocaleString("en-US", { timeZone: "UTC" }));
-  const local = new Date(date.toLocaleString("en-US", { timeZone }));
-  return local.getTime() - utc.getTime();
-}
-
-export function zonedDateTimeToUtc(
-  dateKey: string,
-  time: string,
-  timeZone: string,
-): Date {
-  const [year, month, day] = dateKey.split("-").map(Number);
-  const [hour, minute] = time.split(":").map(Number);
-  const localAsUtc = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
-  const offset = getTimezoneOffsetMs(localAsUtc, timeZone);
-  return new Date(localAsUtc.getTime() - offset);
-}
-
 export function parseTimeToMinutes(time: string): number {
   const [hour, minute] = time.split(":").map(Number);
   return hour * 60 + minute;
@@ -266,4 +304,18 @@ export function formatBookingCount(count: number): string {
   if (mod10 === 1) return `${count} запис`;
   if (mod10 >= 2 && mod10 <= 4) return `${count} записи`;
   return `${count} записів`;
+}
+
+export function extractLocalTimeFromIso(
+  iso: string,
+  timeZone: string,
+): string | null {
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return formatTime(iso, timeZone);
+}
+
+export function addDaysToDateKey(dateKey: string, days: number): string {
+  const next = addDays(parseDateKey(dateKey), days);
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}`;
 }

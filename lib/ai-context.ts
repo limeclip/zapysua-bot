@@ -102,10 +102,7 @@ export function formatClientBookingsForPrompt(
     .map((booking) => {
       const dateKey = formatDateKey(new Date(booking.booking_start), timeZone);
       const whenDate = formatDateLongWithWeekday(dateKey, timeZone);
-      const whenTime = formatTime(booking.booking_start, timeZone, {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      const whenTime = formatTime(booking.booking_start, timeZone);
       return `- id: ${booking.id}, ${whenDate} о ${whenTime}, статус: ${booking.status}`;
     })
     .join("\n");
