@@ -1,13 +1,17 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
 import {
+  addDaysToDateKey,
   formatDateKey,
   formatDateLongWithWeekday,
   formatTime,
-  getWeekdayNameUA,
+  parseDateFromUserText,
+  zonedDateTimeToUtc,
 } from "@/lib/dates";
 import {
   parseWorkingHours,
   formatWorkingDaysList,
+  getWeekdayKeyInTimezone,
+  isWorkingDay,
   WEEKDAYS,
 } from "@/lib/working-hours";
 import { getCategoryLabel } from "@/lib/master-category";
@@ -55,6 +59,23 @@ const TONE_LABELS: Record<AiTone, string> = {
 
 export function getToneLabel(tone: AiTone): string {
   return TONE_LABELS[tone] ?? tone;
+}
+
+export function formatDateContextLine(
+  dateKey: string,
+  workingHours: WorkingHours,
+  timeZone: string,
+): string {
+  const formatted = formatDateLongWithWeekday(dateKey, timeZone);
+  if (!isWorkingDay(dateKey, workingHours, timeZone)) {
+    return `${formatted} — вихідний день`;
+  }
+  const weekdayKey = getWeekdayKeyInTimezone(
+    zonedDateTimeToUtc(dateKey, "12:00", timeZone),
+    timeZone,
+  );
+  const day = workingHours[weekdayKey];
+  return `${formatted} — робочий день, ${day.start}–${day.end}`;
 }
 
 export function formatWorkingHoursString(
@@ -209,6 +230,37 @@ export function invalidateMasterContextCache(masterId: string): void {
   }
 }
 
+export function buildCalendarReference(
+  context: MasterContext,
+  days = 45,
+): string {
+  const timeZone = context.master.timezone;
+  let dateKey = formatDateKey(new Date(), timeZone);
+  const lines: string[] = [];
+
+  for (let i = 0; i < days; i++) {
+    lines.push(formatDateContextLine(dateKey, context.workingHours, timeZone));
+    dateKey = addDaysToDateKey(dateKey, 1);
+  }
+
+  return lines.join("\n");
+}
+
+export function buildUserDateHints(
+  userMessage: string,
+  context: MasterContext,
+): string {
+  const timeZone = context.master.timezone;
+  const dateKeys = parseDateFromUserText(userMessage, timeZone);
+  if (dateKeys.length === 0) return "";
+
+  return dateKeys
+    .map((dateKey) =>
+      formatDateContextLine(dateKey, context.workingHours, timeZone),
+    )
+    .join("\n");
+}
+
 export function buildDefaultSystemPrompt(
   context: MasterContext,
   toneOverride?: string,
@@ -229,15 +281,20 @@ export function buildDefaultSystemPrompt(
     timeZone,
   );
   const todayKey = formatDateKey(new Date(), timeZone);
-  const todayFormatted = formatDateLongWithWeekday(todayKey, timeZone);
+  const todayContext = formatDateContextLine(todayKey, workingHours, timeZone);
+  const calendarReference = buildCalendarReference(context);
 
   return `Ти — AI-адміністратор студії "${master.business_name}". Категорія: ${category}.
 Ти допомагаєш клієнтам записатися на послуги, змінювати/скасовувати записи,
 відповідаєш на запитання про ціни, графік роботи, вільний час.
 
-Сьогодні: ${todayFormatted}.
-Усі дати в контексті вже містять правильний день тижня (понеділок — перший день тижня).
-Ніколи не обчислюй день тижня самостійно через JavaScript getDay() або інші алгоритми — покладайся лише на наданий формат «дата (день тижня)».
+Сьогодні (з backend): ${todayContext}
+
+КАЛЕНДАР BACKEND (єдине джерело правди про день тижня та вихідні):
+${calendarReference}
+
+ЗАБОРОНЕНО самостійно визначати день тижня, робочий/вихідний день, вигадувати слоти або змінювати час клієнта.
+Якщо клієнт питає про дату — цитуй рядок з CALENDAR BACKEND дослівно.
 
 Ось список послуг (назва - ціна (грн) - тривалість хв):
 ${servicesList}
@@ -251,18 +308,17 @@ ${bookingsList}
 
 Твій тон: ${tone}.
 Відповідай коротко, ввічливо, українською мовою.
-Якщо клієнт хоче записатися — запитай послугу, дату, час (використовуй формат YYYY-MM-DDThh:mm:ssZ).
-Якщо клієнт питає вільні слоти — спочатку перевір, чи дата є робочим днем; якщо ні — скажи про вихідний. Інакше поверни реальні слоти (на основі робочих годин і зайнятих записів). Слоти генеруються з кроком 30 хвилин.
+Якщо клієнт хоче записатися — запитай послугу, дату, час.
+Якщо клієнт питає вільні слоти — використовуй ТІЛЬКИ дію show_slots. Ніколи не перелічуй слоти у тексті.
+Слоти генерує backend з кроком = тривалість послуги.
 Якщо клієнт просить перенести/скасувати запис — уточни, який саме (за датою або ID).
-Після того, як клієнт надав усі необхідні дані для запису (послуга, дата, час), надішли ОДНУ дію у форматі JSON (тільки в кінці відповіді, після тексту, лише один запис за раз):
-{"action":"book","serviceId":"uuid","startTime":"2025-06-12T15:00:00Z"}
+Після збору даних для запису надішли ОДНУ дію JSON (в кінці відповіді):
+{"action":"book","serviceId":"uuid","date":"2026-06-19","requestedTime":"11:00"}
 
 Для скасування: {"action":"cancel","bookingId":"uuid"}
-Для перенесення: {"action":"reschedule","bookingId":"uuid","newStartTime":"2025-06-13T10:00:00Z"}
+Для перенесення: {"action":"reschedule","bookingId":"uuid","date":"2026-06-19","requestedTime":"11:00"}
 Для показу списку послуг: {"action":"show_services"}
 Для показу вільних слотів на конкретну дату: {"action":"show_slots","serviceId":"uuid","date":"2025-06-12"}
-Якщо не впевнений — просто дай відповідь текстом без дії.
-
-Ніколи не вигадуй слоти, ID, дати. Якщо чогось не знаєш — скажи, що тобі потрібно уточнити.
-Не створюй кілька записів одночасно — лише один запис за одну дію book.`;
+Запис створюється лише після підтвердження кнопкою клієнтом.
+Якщо не впевнений — відповідай текстом без дії.`;
 }

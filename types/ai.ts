@@ -18,7 +18,9 @@ export type AiActionShowSlots = {
 export type AiActionBook = {
   action: "book";
   serviceId: string;
-  startTime: string;
+  startTime?: string;
+  date?: string;
+  requestedTime?: string;
 };
 
 export type AiActionCancel = {
@@ -29,7 +31,9 @@ export type AiActionCancel = {
 export type AiActionReschedule = {
   action: "reschedule";
   bookingId: string;
-  newStartTime: string;
+  newStartTime?: string;
+  date?: string;
+  requestedTime?: string;
 };
 
 export type AiAction =
@@ -48,6 +52,8 @@ export type PendingBooking = {
   masterId: string;
   serviceId: string;
   startTime: string;
+  dateKey: string;
+  requestedTime: string;
   clientName?: string;
   clientPhone?: string;
 };

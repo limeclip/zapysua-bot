@@ -17,10 +17,14 @@ import {
 } from "@/lib/booking-time";
 import type { WorkingHours } from "@/types";
 
-export type { AvailableSlot } from "@/lib/booking-time";
 export {
   isStartTimeInAvailableSlots,
   resolveBookingStartTime,
+  resolveBookingStartTimeLegacy,
+  resolvedTimeMatchesRequest,
+  extractRequestedLocalTime,
+  TIME_RESOLUTION_ERROR,
+  type AvailableSlot,
 } from "@/lib/booking-time";
 
 function logBookingDebug(

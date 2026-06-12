@@ -47,6 +47,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           action: aiResponse.action,
           clientTelegramId: telegramAuth?.user.id,
           clientName: telegramAuth?.user.first_name,
+          userMessage: message,
         });
         result.actionResult = actionResult.message;
         if (actionResult.pendingBooking) {

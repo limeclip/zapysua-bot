@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import {
   buildDefaultSystemPrompt,
+  buildUserDateHints,
   getMasterContext,
 } from "@/lib/ai-context";
 import { parseAiResponse } from "@/lib/ai-tools";
@@ -168,10 +169,15 @@ export async function generateAIResponse(
   }
 
   let rawText: string | null = null;
+  const context = await getMasterContext(masterId, clientTelegramId);
+  const dateHints = context ? buildUserDateHints(userMessage, context) : "";
+  const llmUserMessage = dateHints
+    ? `${userMessage}\n\n[BACKEND CALENDAR для цього повідомлення]\n${dateHints}`
+    : userMessage;
 
   for (const provider of [primary, fallback]) {
     try {
-      rawText = await callLlm(provider, systemPrompt, history, userMessage);
+      rawText = await callLlm(provider, systemPrompt, history, llmUserMessage);
       break;
     } catch (error) {
       console.error(`[ai] ${provider} error:`, error);

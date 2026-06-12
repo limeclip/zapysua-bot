@@ -16,7 +16,9 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (
       !pendingBooking?.masterId ||
       !pendingBooking?.serviceId ||
-      !pendingBooking?.startTime
+      !pendingBooking?.startTime ||
+      !pendingBooking?.dateKey ||
+      !pendingBooking?.requestedTime
     ) {
       return badRequest("Невірні дані для підтвердження запису");
     }

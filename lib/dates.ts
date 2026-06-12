@@ -319,3 +319,73 @@ export function addDaysToDateKey(dateKey: string, days: number): string {
   const next = addDays(parseDateKey(dateKey), days);
   return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}`;
 }
+
+const UA_MONTHS: Record<string, number> = {
+  січня: 1,
+  січень: 1,
+  лютого: 2,
+  лютий: 2,
+  березня: 3,
+  березень: 3,
+  квітня: 4,
+  квітень: 4,
+  травня: 5,
+  травень: 5,
+  червня: 6,
+  червень: 6,
+  липня: 7,
+  липень: 7,
+  серпня: 8,
+  серпень: 8,
+  вересня: 9,
+  вересень: 9,
+  жовтня: 10,
+  жовтень: 10,
+  листопада: 11,
+  листопад: 11,
+  грудня: 12,
+  грудень: 12,
+};
+
+export function parseDateFromUserText(
+  text: string,
+  timeZone: string,
+): string[] {
+  const found = new Set<string>();
+  const referenceYear = Number(formatDateKey(new Date(), timeZone).slice(0, 4));
+
+  for (const match of text.matchAll(/\b(\d{4}-\d{2}-\d{2})\b/g)) {
+    found.add(match[1]);
+  }
+
+  for (const match of text.matchAll(/\b(\d{1,2})\.(\d{1,2})(?:\.(\d{4}))?\b/g)) {
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    const year = match[3] ? Number(match[3]) : referenceYear;
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      found.add(
+        `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+      );
+    }
+  }
+
+  for (const match of text.matchAll(
+    /\b(\d{1,2})\s+(січня|січень|лютого|лютий|березня|березень|квітня|квітень|травня|травень|червня|червень|липня|липень|серпня|серпень|вересня|вересень|жовтня|жовтень|листопада|листопад|грудня|грудень)\b/gi,
+  )) {
+    const day = Number(match[1]);
+    const month = UA_MONTHS[match[2].toLowerCase()];
+    if (!month || day < 1 || day > 31) continue;
+    const year = referenceYear;
+    found.add(
+      `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+    );
+  }
+
+  return [...found];
+}
+
+export function extractRequestedTimeFromText(text: string): string | null {
+  const match = text.match(/\b(\d{1,2}:\d{2})\b/);
+  if (!match) return null;
+  return minutesToTime(parseTimeToMinutes(match[1]));
+}

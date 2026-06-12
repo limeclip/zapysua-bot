@@ -1,5 +1,5 @@
 import {
-  extractLocalTimeFromIso,
+  formatTime,
   minutesToTime,
   parseTimeToMinutes,
   zonedDateTimeToUtc,
@@ -10,6 +10,20 @@ export type AvailableSlot = {
   startTime: string;
 };
 
+export const TIME_RESOLUTION_ERROR =
+  "Помилка визначення часу запису. Спробуйте ще раз.";
+
+export function extractRequestedLocalTime(raw: string): string | null {
+  if (!raw) return null;
+
+  const timeMatch = raw.match(/(?:T|\s|^)(\d{1,2}:\d{2})/);
+  if (timeMatch) {
+    return minutesToTime(parseTimeToMinutes(timeMatch[1]));
+  }
+
+  return null;
+}
+
 export function isStartTimeInAvailableSlots(
   slots: AvailableSlot[],
   startTime: string,
@@ -19,38 +33,66 @@ export function isStartTimeInAvailableSlots(
   return slots.some((slot) => new Date(slot.startTime).getTime() === target);
 }
 
+export function resolvedTimeMatchesRequest(
+  requestedLocalTime: string,
+  resolvedStartTime: string,
+  timeZone: string,
+): boolean {
+  return formatTime(resolvedStartTime, timeZone) === requestedLocalTime;
+}
+
 export function resolveBookingStartTime(
+  dateKey: string,
+  timeZone: string,
+  slots: AvailableSlot[],
+  requestedLocalTime: string,
+  rawStartTime?: string,
+): string | null {
+  const normalizedTime = minutesToTime(parseTimeToMinutes(requestedLocalTime));
+
+  const slotByTime = slots.find((slot) => slot.time === normalizedTime);
+  if (slotByTime) {
+    return slotByTime.startTime;
+  }
+
+  const constructed = zonedDateTimeToUtc(dateKey, normalizedTime, timeZone);
+  const slotByIso = slots.find(
+    (slot) => new Date(slot.startTime).getTime() === constructed.getTime(),
+  );
+  if (slotByIso) {
+    return slotByIso.startTime;
+  }
+
+  if (rawStartTime && isStartTimeInAvailableSlots(slots, rawStartTime)) {
+    const slotByRaw = slots.find(
+      (slot) => new Date(slot.startTime).getTime() === new Date(rawStartTime).getTime(),
+    );
+    if (
+      slotByRaw &&
+      resolvedTimeMatchesRequest(normalizedTime, slotByRaw.startTime, timeZone)
+    ) {
+      return slotByRaw.startTime;
+    }
+  }
+
+  return null;
+}
+
+export function resolveBookingStartTimeLegacy(
   dateKey: string,
   timeZone: string,
   rawStartTime: string,
   slots: AvailableSlot[],
 ): string | null {
-  if (isStartTimeInAvailableSlots(slots, rawStartTime)) {
-    return rawStartTime;
-  }
-
-  const exactSlot = slots.find((slot) => slot.startTime === rawStartTime);
-  if (exactSlot) return exactSlot.startTime;
-
-  const timeMatch = rawStartTime.match(/(?:T|\s|^)(\d{1,2}:\d{2})/);
-  if (timeMatch) {
-    const normalized = minutesToTime(parseTimeToMinutes(timeMatch[1]));
-    const slotByParsed = slots.find((slot) => slot.time === normalized);
-    if (slotByParsed) return slotByParsed.startTime;
-
-    const constructed = zonedDateTimeToUtc(dateKey, normalized, timeZone);
-    if (isStartTimeInAvailableSlots(slots, constructed.toISOString())) {
-      return constructed.toISOString();
-    }
-  }
-
-  const localFromRaw = extractLocalTimeFromIso(rawStartTime, timeZone);
-  if (localFromRaw) {
-    const slotByLocal = slots.find((slot) => slot.time === localFromRaw);
-    if (slotByLocal) return slotByLocal.startTime;
-  }
-
-  return null;
+  const requestedLocalTime = extractRequestedLocalTime(rawStartTime);
+  if (!requestedLocalTime) return null;
+  return resolveBookingStartTime(
+    dateKey,
+    timeZone,
+    slots,
+    requestedLocalTime,
+    rawStartTime,
+  );
 }
 
 function isSlotStartWithinBooking(

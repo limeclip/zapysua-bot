@@ -1,14 +1,17 @@
 import { findOverlappingBooking } from "@/lib/bookings-server";
 import {
   getAvailableSlots,
-  isStartTimeInAvailableSlots,
   resolveBookingStartTime,
+  resolvedTimeMatchesRequest,
+  extractRequestedLocalTime,
+  TIME_RESOLUTION_ERROR,
 } from "@/lib/booking-utils";
 import {
   formatDateKey,
   formatDateLongWithWeekday,
-  formatTime,
   formatDateTime,
+  minutesToTime,
+  parseTimeToMinutes,
 } from "@/lib/dates";
 import {
   formatWorkingDaysList,
@@ -46,6 +49,32 @@ function logAiAction(
   data: Record<string, unknown>,
 ): void {
   console.log(`[${tag}]`, JSON.stringify(data));
+}
+
+function resolveBookDateAndTime(
+  action: Pick<AiActionBook, "date" | "requestedTime" | "startTime">,
+  timeZone: string,
+): { dateKey: string | null; requestedTime: string | null } {
+  if (action.date && /^\d{4}-\d{2}-\d{2}$/.test(action.date)) {
+    const requestedTime = action.requestedTime
+      ? minutesToTime(parseTimeToMinutes(action.requestedTime))
+      : action.startTime
+        ? extractRequestedLocalTime(action.startTime)
+        : null;
+    return { dateKey: action.date, requestedTime };
+  }
+
+  if (action.startTime) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(action.startTime)) {
+      return { dateKey: action.startTime, requestedTime: null };
+    }
+    return {
+      dateKey: formatDateKey(new Date(action.startTime), timeZone),
+      requestedTime: extractRequestedLocalTime(action.startTime),
+    };
+  }
+
+  return { dateKey: null, requestedTime: null };
 }
 
 function getDayOffMessage(dateKey: string, context: MasterContext): string {
@@ -112,10 +141,22 @@ function parseActionObject(raw: Record<string, unknown>): AiAction | null {
     case "book": {
       const serviceId = raw.serviceId;
       const startTime = raw.startTime;
-      if (typeof serviceId !== "string" || typeof startTime !== "string") {
-        return null;
+      const date = raw.date;
+      const requestedTime = raw.requestedTime;
+      if (typeof serviceId !== "string") return null;
+      if (typeof date === "string" && typeof requestedTime === "string") {
+        return {
+          action: "book",
+          serviceId,
+          date,
+          requestedTime,
+          startTime: typeof startTime === "string" ? startTime : undefined,
+        };
       }
-      return { action: "book", serviceId, startTime };
+      if (typeof startTime === "string") {
+        return { action: "book", serviceId, startTime };
+      }
+      return null;
     }
     case "cancel": {
       const bookingId = raw.bookingId;
@@ -125,10 +166,23 @@ function parseActionObject(raw: Record<string, unknown>): AiAction | null {
     case "reschedule": {
       const bookingId = raw.bookingId;
       const newStartTime = raw.newStartTime;
-      if (typeof bookingId !== "string" || typeof newStartTime !== "string") {
-        return null;
+      const date = raw.date;
+      const requestedTime = raw.requestedTime;
+      if (typeof bookingId !== "string") return null;
+      if (typeof date === "string" && typeof requestedTime === "string") {
+        return {
+          action: "reschedule",
+          bookingId,
+          date,
+          requestedTime,
+          newStartTime:
+            typeof newStartTime === "string" ? newStartTime : undefined,
+        };
       }
-      return { action: "reschedule", bookingId, newStartTime };
+      if (typeof newStartTime === "string") {
+        return { action: "reschedule", bookingId, newStartTime };
+      }
+      return null;
     }
     default:
       return null;
@@ -154,8 +208,12 @@ export function validateAction(
     case "book": {
       const service = context.services.find((s) => s.id === action.serviceId);
       if (!service) return "Послугу не знайдено";
-      if (Number.isNaN(new Date(action.startTime).getTime())) {
-        return "Невірний час запису";
+      const { dateKey, requestedTime } = resolveBookDateAndTime(
+        action,
+        context.master.timezone,
+      );
+      if (!dateKey || !requestedTime) {
+        return "Потрібні дата (YYYY-MM-DD) та час (HH:MM)";
       }
       if (!clientTelegramId) return "Потрібен Telegram ID клієнта";
       return null;
@@ -167,8 +225,16 @@ export function validateAction(
       );
       if (!booking) return "Запис не знайдено або він не належить вам";
       if (action.action === "reschedule") {
-        if (Number.isNaN(new Date(action.newStartTime).getTime())) {
-          return "Невірний новий час";
+        const { dateKey, requestedTime } = resolveBookDateAndTime(
+          {
+            date: action.date,
+            requestedTime: action.requestedTime,
+            startTime: action.newStartTime,
+          },
+          context.master.timezone,
+        );
+        if (!dateKey || !requestedTime) {
+          return "Потрібні дата (YYYY-MM-DD) та час (HH:MM)";
         }
       }
       return null;
@@ -242,8 +308,9 @@ export async function executeAiAction(params: {
   action: AiAction;
   clientTelegramId?: number;
   clientName?: string;
+  userMessage?: string;
 }): Promise<ExecuteActionResult> {
-  const { masterId, action, clientTelegramId, clientName } = params;
+  const { masterId, action, clientTelegramId, clientName, userMessage } = params;
   const context = await getMasterContext(
     masterId,
     clientTelegramId?.toString(),
@@ -273,6 +340,7 @@ export async function executeAiAction(params: {
 
       const slots = await getAvailableSlots(masterId, action.date, action.serviceId);
       logAiAction("SHOW_SLOTS", {
+        userInput: userMessage,
         masterId,
         serviceId: action.serviceId,
         date: action.date,
@@ -295,6 +363,7 @@ export async function executeAiAction(params: {
         context,
         clientTelegramId,
         clientName,
+        userMessage,
       );
 
     case "cancel":
@@ -319,6 +388,7 @@ async function prepareBookAction(
   context: MasterContext,
   clientTelegramId?: number,
   clientName?: string,
+  userMessage?: string,
 ): Promise<ExecuteActionResult> {
   if (!clientTelegramId) {
     return { message: "Для запису потрібен Telegram-акаунт." };
@@ -337,9 +407,14 @@ async function prepareBookAction(
     return { message: "Послугу не знайдено." };
   }
 
-  const dateKey = /^\d{4}-\d{2}-\d{2}$/.test(action.startTime)
-    ? action.startTime
-    : formatDateKey(new Date(action.startTime), context.master.timezone);
+  const { dateKey, requestedTime } = resolveBookDateAndTime(
+    action,
+    context.master.timezone,
+  );
+
+  if (!dateKey || !requestedTime) {
+    return { message: "Потрібні дата та час для запису." };
+  }
 
   if (!isWorkingDay(dateKey, context.workingHours, context.master.timezone)) {
     return { message: getDayOffMessage(dateKey, context) };
@@ -354,31 +429,38 @@ async function prepareBookAction(
   const resolvedStartTime = resolveBookingStartTime(
     dateKey,
     context.master.timezone,
-    action.startTime,
     availableSlots,
+    requestedTime,
+    action.startTime,
   );
 
   logAiAction("BOOK", {
+    userInput: userMessage,
+    requestedDate: dateKey,
+    requestedTime,
     masterId,
     serviceId: action.serviceId,
-    date: dateKey,
     timezone: context.master.timezone,
     startTime: action.startTime,
     bookingStart: resolvedStartTime,
     availableSlots,
   });
 
-  if (!resolvedStartTime) {
-    const dateFormatted = formatDateLongWithWeekday(
-      dateKey,
+  if (
+    !resolvedStartTime ||
+    !resolvedTimeMatchesRequest(
+      requestedTime,
+      resolvedStartTime,
       context.master.timezone,
-    );
-    return {
-      message: `Цей час недоступний на ${dateFormatted}. Напишіть, якщо хочете побачити актуальні вільні слоти.`,
-    };
+    )
+  ) {
+    console.error("[BOOK] time resolution failed", {
+      requestedTime,
+      resolvedStartTime,
+      dateKey,
+    });
+    return { message: TIME_RESOLUTION_ERROR };
   }
-
-  const bookingStart = new Date(resolvedStartTime);
 
   const phone = await resolveClientPhone(masterId, clientTelegramId);
   if (!phone) {
@@ -389,10 +471,7 @@ async function prepareBookAction(
   }
 
   const name = clientName?.trim() || `Клієнт ${clientTelegramId}`;
-  const when = formatDateTime(
-    bookingStart.toISOString(),
-    context.master.timezone,
-  );
+  const when = formatDateTime(resolvedStartTime, context.master.timezone);
 
   return {
     message: `Підсумок запису:\n\nПослуга: ${service.name}\nЧас: ${when}\n\nНатисніть «✅ Підтвердити запис», щоб створити запис. Запис з'явиться лише після підтвердження.`,
@@ -400,6 +479,8 @@ async function prepareBookAction(
       masterId,
       serviceId: action.serviceId,
       startTime: resolvedStartTime,
+      dateKey,
+      requestedTime,
       clientName: name,
       clientPhone: phone,
     },
@@ -411,8 +492,15 @@ export async function confirmPendingBooking(params: {
   clientTelegramId: number;
 }): Promise<ExecuteActionResult> {
   const { pendingBooking, clientTelegramId } = params;
-  const { masterId, serviceId, startTime, clientName, clientPhone } =
-    pendingBooking;
+  const {
+    masterId,
+    serviceId,
+    startTime,
+    dateKey,
+    requestedTime,
+    clientName,
+    clientPhone,
+  } = pendingBooking;
 
   const context = await getMasterContext(masterId, clientTelegramId.toString());
   if (!context) {
@@ -432,7 +520,10 @@ export async function confirmPendingBooking(params: {
     return { message: "Послугу не знайдено." };
   }
 
-  const dateKey = formatDateKey(new Date(startTime), context.master.timezone);
+  if (!dateKey || !requestedTime) {
+    return { message: TIME_RESOLUTION_ERROR };
+  }
+
   if (!isWorkingDay(dateKey, context.workingHours, context.master.timezone)) {
     return { message: getDayOffMessage(dateKey, context) };
   }
@@ -441,33 +532,42 @@ export async function confirmPendingBooking(params: {
   const resolvedStartTime = resolveBookingStartTime(
     dateKey,
     context.master.timezone,
-    startTime,
     availableSlots,
+    requestedTime,
+    startTime,
   );
 
   logAiAction("CONFIRM_BOOKING", {
+    requestedDate: dateKey,
+    requestedTime,
     masterId,
     serviceId,
-    date: dateKey,
     timezone: context.master.timezone,
-    startTime,
+    pendingBookingStartTime: startTime,
     bookingStart: resolvedStartTime,
     availableSlots,
   });
 
-  if (!resolvedStartTime) {
-    const dateFormatted = formatDateLongWithWeekday(
-      dateKey,
+  if (
+    !resolvedStartTime ||
+    !resolvedTimeMatchesRequest(
+      requestedTime,
+      resolvedStartTime,
       context.master.timezone,
-    );
-    return {
-      message: `На жаль, цей час уже зайнятий. На ${dateFormatted} можу показати актуальні вільні слоти — напишіть дату.`,
-    };
+    )
+  ) {
+    console.error("[CONFIRM_BOOKING] time resolution failed", {
+      requestedTime,
+      resolvedStartTime,
+      pendingStartTime: startTime,
+      dateKey,
+    });
+    return { message: TIME_RESOLUTION_ERROR };
   }
 
   const bookingStart = new Date(resolvedStartTime);
   if (Number.isNaN(bookingStart.getTime())) {
-    return { message: "Невірна дата або час." };
+    return { message: TIME_RESOLUTION_ERROR };
   }
 
   const { data: duplicateBooking } = await supabaseAdmin
@@ -572,6 +672,18 @@ export async function confirmPendingBooking(params: {
     }),
   );
 
+  logAiAction("CONFIRM_BOOKING", {
+    requestedDate: dateKey,
+    requestedTime,
+    masterId,
+    serviceId,
+    timezone: context.master.timezone,
+    pendingBookingStartTime: startTime,
+    bookingStart: bookingStart.toISOString(),
+    availableSlots,
+    inserted: true,
+  });
+
   const when = formatDateTime(
     bookingStart.toISOString(),
     masterInfo.timezone,
@@ -649,12 +761,19 @@ async function executeRescheduleAction(
     return { message: "Цей запис не можна перенести." };
   }
 
-  const bookingStart = new Date(action.newStartTime);
-  if (Number.isNaN(bookingStart.getTime())) {
-    return { message: "Невірна дата або час." };
+  const { dateKey, requestedTime } = resolveBookDateAndTime(
+    {
+      date: action.date,
+      requestedTime: action.requestedTime,
+      startTime: action.newStartTime,
+    },
+    context.master.timezone,
+  );
+
+  if (!dateKey || !requestedTime) {
+    return { message: "Потрібні дата та новий час для перенесення." };
   }
 
-  const dateKey = formatDateKey(bookingStart, context.master.timezone);
   if (!isWorkingDay(dateKey, context.workingHours, context.master.timezone)) {
     return { message: getDayOffMessage(dateKey, context) };
   }
@@ -664,11 +783,19 @@ async function executeRescheduleAction(
   const resolvedStartTime = resolveBookingStartTime(
     dateKey,
     context.master.timezone,
-    action.newStartTime,
     availableSlots,
+    requestedTime,
+    action.newStartTime,
   );
 
-  if (!resolvedStartTime) {
+  if (
+    !resolvedStartTime ||
+    !resolvedTimeMatchesRequest(
+      requestedTime,
+      resolvedStartTime,
+      context.master.timezone,
+    )
+  ) {
     const dateFormatted = formatDateLongWithWeekday(
       dateKey,
       context.master.timezone,
