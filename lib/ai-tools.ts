@@ -10,7 +10,7 @@ import {
 } from "@/lib/dates";
 import {
   formatWorkingDaysList,
-  isWorkingDay,
+  parseWorkingHours,
 } from "@/lib/working-hours";
 import {
   getMasterContext,
@@ -256,9 +256,16 @@ export async function executeAiAction(params: {
       };
 
     case "show_slots": {
-      if (!isWorkingDay(action.date, context.workingHours, context.master.timezone)) {
+      // Визначаємо, чи день робочий (без залежності від isWorkingDay)
+      const dateObj = new Date(`${action.date}T12:00:00`);
+      const weekdayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+      const weekdayKey = weekdayNames[dateObj.getDay()] as keyof typeof context.workingHours;
+      const isWorking = context.workingHours[weekdayKey]?.enabled ?? false;
+      if (!isWorking) {
+        const dateFormatted = formatDateLongWithWeekday(action.date, context.master.timezone);
+        const workingDaysList = formatWorkingDaysList(context.workingHours);
         return {
-          message: getDayOffMessage(action.date, context),
+          message: `На жаль, ${dateFormatted} – вихідний день. Робочі дні: ${workingDaysList}.`,
         };
       }
 
@@ -327,7 +334,13 @@ async function prepareBookAction(
   }
 
   const dateKey = formatDateKey(bookingStart, context.master.timezone);
-  if (!isWorkingDay(dateKey, context.workingHours, context.master.timezone)) {
+  
+  // Перевірка вихідного дня (без isWorkingDay)
+  const dateObj = new Date(`${dateKey}T12:00:00`);
+  const weekdayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  const weekdayKey = weekdayNames[dateObj.getDay()] as keyof typeof context.workingHours;
+  const isWorking = context.workingHours[weekdayKey]?.enabled ?? false;
+  if (!isWorking) {
     return { message: getDayOffMessage(dateKey, context) };
   }
 
@@ -362,6 +375,7 @@ async function prepareBookAction(
     { dateStyle: "medium", timeStyle: "short" },
   );
 
+  // Не створюємо запис, а повертаємо pendingBooking
   return {
     message: `Підсумок запису:\n\nПослуга: ${service.name}\nЧас: ${when}\n\nНатисніть «✅ Підтвердити запис», щоб створити запис. Запис з'явиться лише після підтвердження.`,
     pendingBooking: {
@@ -406,7 +420,13 @@ export async function confirmPendingBooking(params: {
   }
 
   const dateKey = formatDateKey(bookingStart, context.master.timezone);
-  if (!isWorkingDay(dateKey, context.workingHours, context.master.timezone)) {
+  
+  // Повторна перевірка вихідного дня
+  const dateObj = new Date(`${dateKey}T12:00:00`);
+  const weekdayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  const weekdayKey = weekdayNames[dateObj.getDay()] as keyof typeof context.workingHours;
+  const isWorking = context.workingHours[weekdayKey]?.enabled ?? false;
+  if (!isWorking) {
     return { message: getDayOffMessage(dateKey, context) };
   }
 
@@ -421,6 +441,7 @@ export async function confirmPendingBooking(params: {
     };
   }
 
+  // Захист від дублікатів
   const { data: duplicateBooking } = await supabaseAdmin
     .from("bookings")
     .select("id")
@@ -607,7 +628,12 @@ async function executeRescheduleAction(
   }
 
   const dateKey = formatDateKey(bookingStart, context.master.timezone);
-  if (!isWorkingDay(dateKey, context.workingHours, context.master.timezone)) {
+  
+  const dateObj = new Date(`${dateKey}T12:00:00`);
+  const weekdayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  const weekdayKey = weekdayNames[dateObj.getDay()] as keyof typeof context.workingHours;
+  const isWorking = context.workingHours[weekdayKey]?.enabled ?? false;
+  if (!isWorking) {
     return { message: getDayOffMessage(dateKey, context) };
   }
 
