@@ -1,6 +1,6 @@
 import { Bot, InlineKeyboard, session, type MiddlewareFn } from "grammy";
 import { findMasterByStartParam } from "@/lib/api/masters";
-import { registerAiHandlers, sendAiWelcome } from "@/lib/bot-ai-handler";
+import {  sendAiWelcome } from "@/lib/bot-ai-handler";
 import { getWebAppBaseUrl } from "@/lib/referral";
 import {
   getMasterByTelegramId,
@@ -129,5 +129,5 @@ const masterMiddleware: MiddlewareFn<BotContext> = async (ctx, next) => {
 
 bot.use(masterMiddleware);
 
-registerAiHandlers(bot);
+// registerAiHandlers(bot);
 registerPaymentHandlers(bot);

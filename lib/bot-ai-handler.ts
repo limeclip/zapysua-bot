@@ -14,25 +14,16 @@ import type { AiActionShowSlots, AiConversationMessage } from "@/types/ai";
 
 function buildAiWelcomeText(businessName: string): string {
   return (
-    `👋 Привіт! Я AI-адміністратор студії «${businessName}».\n\n` +
-    `Я можу допомогти тобі:\n` +
-    `• Записатися на послугу\n` +
-    `• Розповісти про ціни та послуги\n` +
-    `• Показати твої записи\n` +
-    `• Перенести або скасувати запис\n\n` +
-    `Просто напиши мені, що тобі потрібно, або скористайся кнопками нижче.`
+    `👋 Ласкаво просимо до «${businessName}».\n\n` +
+    `Для запису та керування записами відкрийте Mini App нижче.`
   );
 }
 
 export function buildAiWelcomeKeyboard(master: Master): InlineKeyboard {
-  return new InlineKeyboard()
-    .text("Записатися", "ai_book")
-    .text("Послуги", "ai_services")
-    .row()
-    .text("Мої записи", "ai_my_bookings")
-    .text("Допомога", "ai_help")
-    .row()
-    .webApp("Відкрити Mini App", getClientAppUrl(master));
+  return new InlineKeyboard().webApp(
+    "Відкрити Mini App",
+    getClientAppUrl(master),
+  );
 }
 
 export async function sendAiWelcome(
@@ -181,96 +172,17 @@ async function sendServicesWithBookButtons(
   });
 }
 
-async function handleQuickAction(
-  ctx: BotContext,
-  masterId: string,
-  message: string,
-): Promise<void> {
-  await processAiMessage(ctx, masterId, message);
-}
+// async function handleQuickAction(
+//   ctx: BotContext,
+//   masterId: string,
+//   message: string,
+// ): Promise<void> {
+//   await processAiMessage(ctx, masterId, message);
+// }
 
-export function registerAiHandlers(bot: Bot<BotContext>): void {
-  bot.callbackQuery(/^ai_/, async (ctx) => {
-    await ctx.answerCallbackQuery();
+// export function registerAiHandlers(bot: Bot<BotContext>): void {
 
-    const masterId = ctx.session.masterId;
-    if (!masterId) {
-      await ctx.reply("Спочатку перейдіть за посиланням майстра (/start slug).");
-      return;
-    }
-
-    const data = ctx.callbackQuery.data ?? "";
-
-    if (data === "ai_book") {
-      await handleQuickAction(
-        ctx,
-        masterId,
-        "Хочу записатися на послугу. Допоможи мені обрати послугу, дату та час.",
-      );
-      return;
-    }
-
-    if (data === "ai_services") {
-      await sendServicesWithBookButtons(ctx, masterId);
-      return;
-    }
-
-    if (data === "ai_my_bookings") {
-      const context = await getMasterContext(
-        masterId,
-        ctx.from?.id?.toString(),
-      );
-      const text = context
-        ? formatClientBookingsText(context)
-        : "У вас немає майбутніх записів.";
-      await ctx.reply(`Ваші записи:\n\n${text}`);
-      return;
-    }
-
-    if (data === "ai_help") {
-      await ctx.reply(getAiHelpText());
-      return;
-    }
-
-    if (data.startsWith("ai_book_service:")) {
-      const serviceId = data.replace("ai_book_service:", "");
-      await handleQuickAction(
-        ctx,
-        masterId,
-        `Хочу записатися на послугу з id ${serviceId}. Допоможи обрати дату та час.`,
-      );
-      return;
-    }
-
-    if (data.startsWith("ai_slot|")) {
-      const index = Number.parseInt(data.replace("ai_slot|", ""), 10);
-      const slot = ctx.session.pendingSlots?.[index];
-      if (!slot) return;
-      await handleQuickAction(
-        ctx,
-        masterId,
-        `Запиши мене на послугу ${slot.serviceId} на ${slot.startTime}`,
-      );
-    }
-  });
-
-  bot.on("message:text", async (ctx, next) => {
-    const text = ctx.message.text.trim();
-    if (text.startsWith("/")) {
-      return next();
-    }
-
-    if (ctx.master) {
-      return next();
-    }
-
-    const masterId = ctx.session.masterId;
-    if (!masterId) {
-      return next();
-    }
-
-    await processAiMessage(ctx, masterId, text);
-  });
-}
+ 
+// }
 
 export { buildAiWelcomeText, getAiHelpText };
