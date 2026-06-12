@@ -53,28 +53,20 @@ async function callGemini(
   userMessage: string,
 ): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY не встановлено");
-  }
-
+  if (!apiKey) throw new Error("GEMINI_API_KEY не встановлено");
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    systemInstruction: systemPrompt,
-  });
-
-  const chat = model.startChat({
-    history: history.map((message) => ({
-      role: message.role === "assistant" ? "model" : "user",
-      parts: [{ text: message.content }],
-    })),
-  });
-
-  const result = await chat.sendMessage(userMessage);
-  const text = result.response.text();
-  if (!text?.trim()) {
-    throw new Error("Порожня відповідь Gemini");
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  
+  // Формуємо повний промпт з системною інструкцією та історією
+  let fullPrompt = systemPrompt + "\n\n";
+  for (const msg of history) {
+    fullPrompt += `${msg.role === "assistant" ? "AI" : "Клієнт"}: ${msg.content}\n`;
   }
+  fullPrompt += `Клієнт: ${userMessage}\nAI:`;
+  
+  const result = await model.generateContent(fullPrompt);
+  const text = result.response.text();
+  if (!text?.trim()) throw new Error("Порожня відповідь Gemini");
   return text.trim();
 }
 

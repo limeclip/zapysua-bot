@@ -44,6 +44,7 @@ export async function getAvailableSlots(
   date: string,
   serviceId: string,
 ): Promise<AvailableSlot[]> {
+  console.log('[getAvailableSlots] masterId:', masterId, 'date:', date, 'serviceId:', serviceId);
   const { data: service, error: serviceError } = await supabaseAdmin
     .from("services")
     .select("duration_minutes")
@@ -54,7 +55,10 @@ export async function getAvailableSlots(
 
   if (serviceError) throw serviceError;
   const durationMinutes = service?.duration_minutes;
-  if (!durationMinutes || durationMinutes < 1) return [];
+  if (!durationMinutes || durationMinutes < 1) {
+    console.log('[getAvailableSlots] durationMinutes not found for serviceId', serviceId);
+    return [];
+  }
 
   const { data: master, error: masterError } = await supabaseAdmin
     .from("masters")
@@ -75,7 +79,10 @@ export async function getAvailableSlots(
     timeZone,
   );
   const dayConfig = workingHours[weekday];
-  if (!dayConfig.enabled) return [];
+  if (!dayConfig.enabled) {
+    console.log('[getAvailableSlots] day is not enabled for weekday', weekday);
+    return [];
+  }
 
   const dayStartMinutes = parseTimeToMinutes(dayConfig.start);
   const dayEndMinutes = parseTimeToMinutes(dayConfig.end);
@@ -151,5 +158,6 @@ export async function getAvailableSlots(
     }
   }
 
+  console.log('[getAvailableSlots] generated slots count:', slots.length);
   return slots;
 }
