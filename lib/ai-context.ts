@@ -5,15 +5,13 @@ import {
   formatDateLongWithWeekday,
   formatTime,
   parseDateFromUserText,
-  parseDateKey,
   zonedDateTimeToUtc,
 } from "@/lib/dates";
 import {
   parseWorkingHours,
   formatWorkingDaysList,
-  getWeekdayKeyFromDate,
   getWeekdayKeyInTimezone,
-  isWorkingDayByDateKey,
+  isWorkingDay,
   WEEKDAYS,
 } from "@/lib/working-hours";
 import { getCategoryLabel } from "@/lib/master-category";
@@ -69,13 +67,13 @@ export function formatDateContextLine(
   timeZone: string,
 ): string {
   const formatted = formatDateLongWithWeekday(dateKey, timeZone);
-  // ВИКОРИСТОВУЄМО isWorkingDayByDateKey БЕЗ ГОДИННИКА
-  const isWorking = isWorkingDayByDateKey(dateKey, workingHours);
-  if (!isWorking) {
+  if (!isWorkingDay(dateKey, workingHours, timeZone)) {
     return `${formatted} — вихідний день`;
   }
-  const date = parseDateKey(dateKey);
-  const weekdayKey = getWeekdayKeyFromDate(date);
+  const weekdayKey = getWeekdayKeyInTimezone(
+    zonedDateTimeToUtc(dateKey, "12:00", timeZone),
+    timeZone,
+  );
   const day = workingHours[weekdayKey];
   return `${formatted} — робочий день, ${day.start}–${day.end}`;
 }
@@ -284,10 +282,9 @@ export function buildDefaultSystemPrompt(
   );
   const todayKey = formatDateKey(new Date(), timeZone);
   const todayContext = formatDateContextLine(todayKey, workingHours, timeZone);
-  const calendarReference = buildCalendarReference(context);
+  const calendarReference = buildCalendarReference(context, 365);
 
   return `Ти — AI-адміністратор студії "${master.business_name}". Категорія: ${category}.
-
 Ти допомагаєш клієнтам записатися на послуги, змінювати/скасовувати записи,
 відповідаєш на запитання про ціни, графік роботи, вільний час.
 
@@ -297,14 +294,24 @@ export function buildDefaultSystemPrompt(
 ${calendarReference}
 
 ЗАБОРОНЕНО самостійно визначати день тижня, робочий/вихідний день, вигадувати слоти або змінювати час клієнта.
-Якщо клієнт питає про дату — цитуй рядок з CALENDAR BACKEND дослівно.
+Якщо клієнт назвав дату, спочатку знайди її у CALENDAR BACKEND.
+
+Відповідь про день тижня і робочий/вихідний день дозволена ТІЛЬКИ на основі рядка CALENDAR BACKEND.
+
+Заборонено використовувати власні знання про календар.
 
 Ось список послуг (назва - ціна (грн) - тривалість хв):
 ${servicesList}
 
 Робочі дні та години: ${workingDaysList}.
 Повний графік: ${workingHoursString}.
-Якщо клієнт обирає вихідний день — повідом, що це вихідний, і запропонуй робочі дні з графіку.
+ЗАБОРОНЕНО визначати вихідний день самостійно.
+
+Вихідним вважається ТІЛЬКИ день, який у CALENDAR BACKEND позначений як "вихідний день".
+
+Якщо дата позначена як "робочий день" — ти не маєш права називати її вихідним днем.
+
+Якщо не знаєш статус дати — використовуй show_slots для перевірки.
 
 Майбутні записи клієнта:
 ${bookingsList}
@@ -315,7 +322,6 @@ ${bookingsList}
 Якщо клієнт питає вільні слоти — використовуй ТІЛЬКИ дію show_slots. Ніколи не перелічуй слоти у тексті.
 Слоти генерує backend з кроком = тривалість послуги.
 Якщо клієнт просить перенести/скасувати запис — уточни, який саме (за датою або ID).
-
 Після збору даних для запису надішли ОДНУ дію JSON (в кінці відповіді):
 {"action":"book","serviceId":"uuid","date":"2026-06-19","requestedTime":"11:00"}
 
@@ -323,7 +329,6 @@ ${bookingsList}
 Для перенесення: {"action":"reschedule","bookingId":"uuid","date":"2026-06-19","requestedTime":"11:00"}
 Для показу списку послуг: {"action":"show_services"}
 Для показу вільних слотів на конкретну дату: {"action":"show_slots","serviceId":"uuid","date":"2025-06-12"}
-
 Запис створюється лише після підтвердження кнопкою клієнтом.
 Якщо не впевнений — відповідай текстом без дії.`;
 }
