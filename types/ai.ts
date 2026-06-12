@@ -44,6 +44,15 @@ export type AiResponse = {
   action?: AiAction;
 };
 
+export type PendingBooking = {
+  masterId: string;
+  serviceId: string;
+  startTime: string;
+  clientName?: string;
+  clientPhone?: string;
+};
+
 export type AiChatResponse = AiResponse & {
   actionResult?: string;
+  pendingBooking?: PendingBooking;
 };

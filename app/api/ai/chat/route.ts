@@ -41,13 +41,22 @@ export async function POST(request: Request): Promise<NextResponse> {
     };
 
     if (aiResponse.action) {
-      const actionResult = await executeAiAction({
-        masterId,
-        action: aiResponse.action,
-        clientTelegramId: telegramAuth?.user.id,
-        clientName: telegramAuth?.user.first_name,
-      });
-      result.actionResult = actionResult.message;
+      try {
+        const actionResult = await executeAiAction({
+          masterId,
+          action: aiResponse.action,
+          clientTelegramId: telegramAuth?.user.id,
+          clientName: telegramAuth?.user.first_name,
+        });
+        result.actionResult = actionResult.message;
+        if (actionResult.pendingBooking) {
+          result.pendingBooking = actionResult.pendingBooking;
+        }
+      } catch (actionError) {
+        console.error("[api/ai/chat] executeAiAction:", actionError);
+        result.actionResult =
+          "Не вдалося виконати дію. Спробуйте пізніше.";
+      }
     }
 
     return NextResponse.json(result);

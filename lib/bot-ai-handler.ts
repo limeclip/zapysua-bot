@@ -9,8 +9,8 @@ import {
 } from "@/lib/ai-tools";
 import { getMasterContext } from "@/lib/ai-context";
 import { getClientAppUrl } from "@/lib/referral";
-import type { BotContext, Master, AiSessionMessage } from "@/types";
-import type { AiActionShowSlots } from "@/types/ai";
+import type { BotContext, Master } from "@/types";
+import type { AiActionShowSlots, AiConversationMessage } from "@/types/ai";
 
 function buildAiWelcomeText(businessName: string): string {
   return (
@@ -26,11 +26,11 @@ function buildAiWelcomeText(businessName: string): string {
 
 export function buildAiWelcomeKeyboard(master: Master): InlineKeyboard {
   return new InlineKeyboard()
-    .text("Записатися", `ai_book|${master.id}`)
-    .text("Послуги", `ai_services|${master.id}`)
+    .text("Записатися", "ai_book")
+    .text("Послуги", "ai_services")
     .row()
-    .text("Мої записи", `ai_my_bookings|${master.id}`)
-    .text("Допомога", `ai_help|${master.id}`)
+    .text("Мої записи", "ai_my_bookings")
+    .text("Допомога", "ai_help")
     .row()
     .webApp("Відкрити Mini App", getClientAppUrl(master));
 }
@@ -50,9 +50,10 @@ export async function sendAiWelcome(
       caption: text,
       reply_markup: keyboard,
     });
-  } else {
-    await ctx.reply(text, { reply_markup: keyboard });
+    return;
   }
+
+  await ctx.reply(text, { reply_markup: keyboard });
 }
 
 function getClientName(ctx: BotContext): string {
@@ -67,7 +68,7 @@ function pushHistory(
   userMessage: string,
   assistantMessage: string,
 ): void {
-  const history: AiSessionMessage[] = session.history ?? [];
+  const history: AiConversationMessage[] = session.history ?? [];
   history.push({ role: "user", content: userMessage });
   history.push({ role: "assistant", content: assistantMessage });
   session.history = history.slice(-MAX_HISTORY);
@@ -81,51 +82,44 @@ async function processAiMessage(
   const telegramId = ctx.from?.id;
   const history = ctx.session.history ?? [];
 
-  console.log(`[AI] Обробка повідомлення: "${userMessage}" для masterId=${masterId}`);
+  const aiResponse = await generateAIResponse(
+    masterId,
+    userMessage,
+    history,
+    telegramId?.toString(),
+  );
 
-  try {
-    const aiResponse = await generateAIResponse(
+  let replyText = aiResponse.reply;
+
+  if (aiResponse.action) {
+    const actionResult = await executeAiAction({
       masterId,
-      userMessage,
-      history,
-      telegramId?.toString(),
-    );
+      action: aiResponse.action,
+      clientTelegramId: telegramId,
+      clientName: getClientName(ctx),
+    });
 
-    let replyText = aiResponse.reply;
-
-    if (aiResponse.action) {
-      const actionResult = await executeAiAction({
-        masterId,
-        action: aiResponse.action,
-        clientTelegramId: telegramId,
-        clientName: getClientName(ctx),
-      });
-
-      if (actionResult.message) {
-        replyText = replyText
-          ? `${replyText}\n\n${actionResult.message}`
-          : actionResult.message;
-      }
-
-      if (
-        aiResponse.action.action === "show_slots" &&
-        !actionResult.message.includes("немає вільних") &&
-        !actionResult.message.includes("вихідний день")
-      ) {
-        await sendSlotsKeyboard(ctx, masterId, aiResponse.action);
-      }
+    if (actionResult.message) {
+      replyText = replyText
+        ? `${replyText}\n\n${actionResult.message}`
+        : actionResult.message;
     }
 
-    if (!replyText.trim()) {
-      replyText = "Готово!";
+    if (
+      aiResponse.action.action === "show_slots" &&
+      !actionResult.message.includes("немає вільних") &&
+      !actionResult.message.includes("вихідний день")
+    ) {
+      await sendSlotsKeyboard(ctx, masterId, aiResponse.action);
     }
-
-    await ctx.reply(replyText);
-    pushHistory(ctx.session, userMessage, replyText);
-  } catch (error) {
-    console.error("[AI] Помилка в processAiMessage:", error);
-    await ctx.reply("Вибачте, сталася помилка. Спробуйте пізніше.");
   }
+
+  if (!replyText.trim()) {
+    replyText = "Готово!";
+  }
+
+  await ctx.reply(replyText);
+  pushHistory(ctx.session, userMessage, replyText);
 }
 
 async function sendSlotsKeyboard(
@@ -133,7 +127,10 @@ async function sendSlotsKeyboard(
   masterId: string,
   action: AiActionShowSlots,
 ): Promise<void> {
-  const context = await getMasterContext(masterId, ctx.from?.id?.toString());
+  const context = await getMasterContext(
+    masterId,
+    ctx.from?.id?.toString(),
+  );
   if (!context) return;
 
   const slots = await getSlotsForAction(masterId, action, context);
@@ -146,8 +143,10 @@ async function sendSlotsKeyboard(
 
   const keyboard = new InlineKeyboard();
   slots.slice(0, 12).forEach((slot, index) => {
-    if (index > 0 && index % 3 === 0) keyboard.row();
-    keyboard.text(slot.label, `ai_slot|${masterId}|${index}`);
+    if (index > 0 && index % 3 === 0) {
+      keyboard.row();
+    }
+    keyboard.text(slot.label, `ai_slot|${index}`);
   });
 
   await ctx.reply("Оберіть зручний час:", { reply_markup: keyboard });
@@ -157,7 +156,10 @@ async function sendServicesWithBookButtons(
   ctx: BotContext,
   masterId: string,
 ): Promise<void> {
-  const context = await getMasterContext(masterId, ctx.from?.id?.toString());
+  const context = await getMasterContext(
+    masterId,
+    ctx.from?.id?.toString(),
+  );
   if (!context) {
     await ctx.reply("Майстра не знайдено.");
     return;
@@ -165,17 +167,18 @@ async function sendServicesWithBookButtons(
 
   const text = `Ось наші послуги:\n\n${formatServicesListText(context)}`;
   const keyboard = new InlineKeyboard();
-  const serviceKeys: { key: string; serviceId: string }[] = [];
 
-  for (const service of context.services) {
-    const shortKey = Math.random().toString(36).substring(2, 8);
-    serviceKeys.push({ key: shortKey, serviceId: service.id });
-    keyboard.text(`Записатися: ${service.name}`, `ai_book_service|${shortKey}`);
-    keyboard.row();
-  }
+  context.services.forEach((service, index) => {
+    if (index > 0) keyboard.row();
+    keyboard.text(
+      `Записатися: ${service.name}`,
+      `ai_book_service:${service.id}`,
+    );
+  });
 
-  ctx.session.serviceKeyMap = serviceKeys;
-  await ctx.reply(text, { reply_markup: keyboard });
+  await ctx.reply(text, {
+    reply_markup: context.services.length > 0 ? keyboard : undefined,
+  });
 }
 
 async function handleQuickAction(
@@ -190,32 +193,33 @@ export function registerAiHandlers(bot: Bot<BotContext>): void {
   bot.callbackQuery(/^ai_/, async (ctx) => {
     await ctx.answerCallbackQuery();
 
-    const data = ctx.callbackQuery.data ?? "";
-    const parts = data.split("|");
-    const action = parts[0];
-    const masterId = parts[1];
-    const extra = parts[2];
-
+    const masterId = ctx.session.masterId;
     if (!masterId) {
-      console.error("[AI] Немає masterId в callback data");
-      await ctx.reply("Помилка: не вдалося визначити майстра.");
+      await ctx.reply("Спочатку перейдіть за посиланням майстра (/start slug).");
       return;
     }
 
-    ctx.session.masterId = masterId;
+    const data = ctx.callbackQuery.data ?? "";
 
-    if (action === "ai_book") {
-      await handleQuickAction(ctx, masterId, "Хочу записатися на послугу. Допоможи мені обрати послугу, дату та час.");
+    if (data === "ai_book") {
+      await handleQuickAction(
+        ctx,
+        masterId,
+        "Хочу записатися на послугу. Допоможи мені обрати послугу, дату та час.",
+      );
       return;
     }
 
-    if (action === "ai_services") {
+    if (data === "ai_services") {
       await sendServicesWithBookButtons(ctx, masterId);
       return;
     }
 
-    if (action === "ai_my_bookings") {
-      const context = await getMasterContext(masterId, ctx.from?.id?.toString());
+    if (data === "ai_my_bookings") {
+      const context = await getMasterContext(
+        masterId,
+        ctx.from?.id?.toString(),
+      );
       const text = context
         ? formatClientBookingsText(context)
         : "У вас немає майбутніх записів.";
@@ -223,52 +227,48 @@ export function registerAiHandlers(bot: Bot<BotContext>): void {
       return;
     }
 
-    if (action === "ai_help") {
+    if (data === "ai_help") {
       await ctx.reply(getAiHelpText());
       return;
     }
 
-    if (action === "ai_book_service" && extra) {
-      const shortKey = extra;
-      const mapping = ctx.session.serviceKeyMap?.find(item => item.key === shortKey);
-      if (!mapping) {
-        await ctx.reply("Помилка: спробуйте ще раз.");
-        return;
-      }
-      const serviceId = mapping.serviceId;
-      await handleQuickAction(ctx, masterId, `Хочу записатися на послугу з id ${serviceId}. Допоможи обрати дату та час.`);
+    if (data.startsWith("ai_book_service:")) {
+      const serviceId = data.replace("ai_book_service:", "");
+      await handleQuickAction(
+        ctx,
+        masterId,
+        `Хочу записатися на послугу з id ${serviceId}. Допоможи обрати дату та час.`,
+      );
       return;
     }
 
-    if (action === "ai_slot" && extra) {
-      const index = Number.parseInt(extra, 10);
+    if (data.startsWith("ai_slot|")) {
+      const index = Number.parseInt(data.replace("ai_slot|", ""), 10);
       const slot = ctx.session.pendingSlots?.[index];
       if (!slot) return;
-      await handleQuickAction(ctx, masterId, `Запиши мене на послугу ${slot.serviceId} на ${slot.startTime}`);
-      return;
+      await handleQuickAction(
+        ctx,
+        masterId,
+        `Запиши мене на послугу ${slot.serviceId} на ${slot.startTime}`,
+      );
     }
   });
 
   bot.on("message:text", async (ctx, next) => {
     const text = ctx.message.text.trim();
-    console.log(`[AI] Отримано текст: "${text}"`);
-
     if (text.startsWith("/")) {
       return next();
     }
 
     if (ctx.master) {
-      console.log("[AI] Користувач є майстром, пропускаємо");
       return next();
     }
 
     const masterId = ctx.session.masterId;
     if (!masterId) {
-      console.log("[AI] Немає masterId в сесії, пропускаємо");
       return next();
     }
 
-    console.log(`[AI] Передаємо повідомлення в AI для masterId=${masterId}`);
     await processAiMessage(ctx, masterId, text);
   });
 }

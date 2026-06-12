@@ -10,6 +10,7 @@ import {
   Notebook,
   Send,
   Trash2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,11 +23,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { apiFetch } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
-import type { AiChatResponse, AiConversationMessage } from "@/types/ai";
+import type {
+  AiChatResponse,
+  AiConversationMessage,
+  PendingBooking,
+} from "@/types/ai";
 
 type ChatMessage = AiConversationMessage & {
   id: string;
   showQuickActions?: boolean;
+  pendingBooking?: PendingBooking;
+  confirmState?: "idle" | "loading" | "done";
 };
 
 type AIChatPanelProps = {
@@ -80,13 +87,18 @@ function buildWelcomeMessage(businessName: string): string {
 function createMessage(
   role: AiConversationMessage["role"],
   content: string,
-  options?: { showQuickActions?: boolean },
+  options?: {
+    showQuickActions?: boolean;
+    pendingBooking?: PendingBooking;
+  },
 ): ChatMessage {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
     role,
     content,
     showQuickActions: options?.showQuickActions,
+    pendingBooking: options?.pendingBooking,
+    confirmState: options?.pendingBooking ? "idle" : undefined,
   };
 }
 
@@ -109,7 +121,10 @@ function loadStoredMessages(masterId: string): ChatMessage[] | null {
       if (!raw) continue;
       const parsed = JSON.parse(raw) as ChatMessage[];
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        return parsed.map((message) => ({
+          ...message,
+          confirmState: message.pendingBooking ? "done" : message.confirmState,
+        }));
       }
     }
     return null;
@@ -208,6 +223,7 @@ function ClearHistoryDialog({
 export function AIChatPanel({
   masterId,
   businessName,
+  onClose,
 }: AIChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -273,13 +289,15 @@ export function AIChatPanel({
 
         setMessages((prev) => [
           ...prev,
-          createMessage("assistant", assistantText || "Готово!"),
+          createMessage("assistant", assistantText || "Готово!", {
+            pendingBooking: response.pendingBooking,
+          }),
         ]);
       } catch (error) {
         const errorText =
           error instanceof Error
             ? error.message
-            : "Вибач, зараз я не можу відповісти. Спробуй пізніше.";
+            : "Сталася помилка. Спробуйте пізніше.";
         setMessages((prev) => [
           ...prev,
           createMessage("assistant", errorText),
@@ -289,6 +307,58 @@ export function AIChatPanel({
       }
     },
     [loading, masterId, messages],
+  );
+
+  const handleConfirmBooking = useCallback(
+    async (messageId: string, pendingBooking: PendingBooking) => {
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === messageId
+            ? { ...message, confirmState: "loading" }
+            : message,
+        ),
+      );
+
+      try {
+        const response = await apiFetch<{ message: string }>(
+          "/api/ai/confirm-booking",
+          {
+            method: "POST",
+            body: JSON.stringify({ pendingBooking }),
+          },
+        );
+
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === messageId
+              ? {
+                  ...message,
+                  confirmState: "done",
+                  pendingBooking: undefined,
+                  content: `${message.content}\n\n${response.message}`,
+                }
+              : message,
+          ),
+        );
+      } catch (error) {
+        const errorText =
+          error instanceof Error
+            ? error.message
+            : "Не вдалося підтвердити запис. Спробуйте пізніше.";
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === messageId
+              ? {
+                  ...message,
+                  confirmState: "idle",
+                  content: `${message.content}\n\n${errorText}`,
+                }
+              : message,
+          ),
+        );
+      }
+    },
+    [],
   );
 
   const handleClearHistory = useCallback(async () => {
@@ -317,32 +387,53 @@ export function AIChatPanel({
   const canClearHistory = messages.length > 0;
 
   return (
-    <div className="flex h-[calc(100%-4rem)] min-h-0 flex-col">
-      <div className="flex items-center justify-end border-b border-border px-4 py-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-base font-semibold text-foreground">
+            AI-адміністратор
+          </h2>
+          <p className="truncate text-xs text-muted-foreground">{businessName}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                aria-label="Меню чату"
+                disabled={loading || clearing}
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                disabled={!canClearHistory}
+                onClick={() => setClearDialogOpen(true)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+                Очистити історію
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {onClose && (
             <Button
               type="button"
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              aria-label="Меню чату"
+              aria-label="Закрити чат"
+              onClick={onClose}
               disabled={loading || clearing}
             >
-              <MoreVertical className="h-4 w-4" />
+              <X className="h-4 w-4" />
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              disabled={!canClearHistory}
-              onClick={() => setClearDialogOpen(true)}
-              className="text-destructive focus:text-destructive"
-            >
-              <Trash2 className="h-4 w-4" />
-              Очистити історію
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          )}
+        </div>
       </div>
 
       <div
@@ -360,6 +451,31 @@ export function AIChatPanel({
             )}
           >
             {message.content}
+            {message.pendingBooking && message.confirmState !== "done" && (
+              <div className="mt-3 border-t border-border/60 pt-3">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="w-full"
+                  disabled={message.confirmState === "loading" || loading}
+                  onClick={() =>
+                    void handleConfirmBooking(
+                      message.id,
+                      message.pendingBooking!,
+                    )
+                  }
+                >
+                  {message.confirmState === "loading" ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Підтвердження…
+                    </>
+                  ) : (
+                    "✅ Підтвердити запис"
+                  )}
+                </Button>
+              </div>
+            )}
             {message.showQuickActions && (
               <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border/60 pt-3">
                 {QUICK_ACTIONS.map(({ id, label, icon: Icon, message: actionMessage }) => (

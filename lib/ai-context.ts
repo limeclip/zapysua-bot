@@ -3,10 +3,14 @@ import {
   formatDateKey,
   formatDateLongWithWeekday,
   formatTime,
+  getWeekdayNameUA,
+  zonedDateTimeToUtc,
 } from "@/lib/dates";
 import {
   parseWorkingHours,
   formatWorkingDaysList,
+  getWeekdayKeyInTimezone,
+  isWorkingDay,
   WEEKDAYS,
 } from "@/lib/working-hours";
 import { getCategoryLabel } from "@/lib/master-category";
@@ -54,6 +58,27 @@ const TONE_LABELS: Record<AiTone, string> = {
 
 export function getToneLabel(tone: AiTone): string {
   return TONE_LABELS[tone] ?? tone;
+}
+
+export function formatDateContextLine(
+  dateKey: string,
+  workingHours: WorkingHours,
+  timeZone: string,
+): string {
+  const weekday = getWeekdayNameUA(dateKey, timeZone);
+  const dateFormatted = formatDateLongWithWeekday(dateKey, timeZone);
+
+  if (!isWorkingDay(dateKey, workingHours, timeZone)) {
+    return `${dateFormatted} – ${weekday}. Вихідний день.`;
+  }
+
+  const weekdayKey = getWeekdayKeyInTimezone(
+    zonedDateTimeToUtc(dateKey, "12:00", timeZone),
+    timeZone,
+  );
+  const day = workingHours[weekdayKey];
+
+  return `${dateFormatted} – ${weekday}. Робочі години: ${day.start}–${day.end}.`;
 }
 
 export function formatWorkingHoursString(
@@ -231,15 +256,15 @@ export function buildDefaultSystemPrompt(
     timeZone,
   );
   const todayKey = formatDateKey(new Date(), timeZone);
-  const todayFormatted = formatDateLongWithWeekday(todayKey, timeZone);
+  const todayContext = formatDateContextLine(todayKey, workingHours, timeZone);
 
   return `Ти — AI-адміністратор студії "${master.business_name}". Категорія: ${category}.
 Ти допомагаєш клієнтам записатися на послуги, змінювати/скасовувати записи,
 відповідаєш на запитання про ціни, графік роботи, вільний час.
 
-Сьогодні: ${todayFormatted}.
+Сьогодні: ${todayContext}
 Усі дати в контексті вже містять правильний день тижня (понеділок — перший день тижня).
-Ніколи не обчислюй день тижня самостійно через JavaScript getDay() або інші алгоритми — покладайся лише на наданий формат «дата (день тижня)».
+Ніколи не обчислюй день тижня самостійно — покладайся лише на наданий бекендом формат «дата – день тижня».
 
 Ось список послуг (назва - ціна (грн) - тривалість хв):
 ${servicesList}
@@ -254,9 +279,11 @@ ${bookingsList}
 Твій тон: ${tone}.
 Відповідай коротко, ввічливо, українською мовою.
 Якщо клієнт хоче записатися — запитай послугу, дату, час (використовуй формат YYYY-MM-DDThh:mm:ssZ).
-Якщо клієнт питає вільні слоти — спочатку перевір, чи дата є робочим днем; якщо ні — скажи про вихідний. Інакше поверни реальні слоти (на основі робочих годин і зайнятих записів). Слоти генеруються з кроком 30 хвилин.
+Ніколи не змінюй час, який обрав клієнт, і не пропонуй альтернативний час замість обраного.
+Якщо клієнт питає вільні слоти — використовуй дію show_slots; ніколи не вигадуй слоти самостійно.
+Слоти генерує лише бекенд з кроком, що дорівнює тривалості послуги.
 Якщо клієнт просить перенести/скасувати запис — уточни, який саме (за датою або ID).
-Після того, як клієнт надав усі необхідні дані для запису (послуга, дата, час), надішли ОДНУ дію у форматі JSON (тільки в кінці відповіді, після тексту, лише один запис за раз):
+Після того, як клієнт надав усі необхідні дані для запису (послуга, дата, час), надішли ОДНУ дію book (запис створюється лише після підтвердження кнопкою клієнтом):
 {"action":"book","serviceId":"uuid","startTime":"2025-06-12T15:00:00Z"}
 
 Для скасування: {"action":"cancel","bookingId":"uuid"}

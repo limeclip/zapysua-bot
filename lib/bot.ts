@@ -1,6 +1,4 @@
 import { Bot, InlineKeyboard, session, type MiddlewareFn } from "grammy";
-import { supabaseAdapter } from "@grammyjs/storage-supabase";
-import { createClient } from "@supabase/supabase-js";
 import { findMasterByStartParam } from "@/lib/api/masters";
 import { registerAiHandlers, sendAiWelcome } from "@/lib/bot-ai-handler";
 import { getWebAppBaseUrl } from "@/lib/referral";
@@ -15,22 +13,25 @@ import type { BotContext, Master, SessionData } from "@/types";
 
 function getBotToken(): string {
   const token = process.env.BOT_TOKEN;
-  if (!token) throw new Error("BOT_TOKEN не встановлено");
+  if (!token) {
+    throw new Error("BOT_TOKEN не встановлено");
+  }
   return token;
 }
 
-// Створюємо клієнт Supabase для сесій
-const supabaseForSession = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
-
 function webAppInlineKeyboard(buttonText: string, url?: string) {
-  return new InlineKeyboard().webApp(buttonText, url ?? getWebAppBaseUrl());
+  return new InlineKeyboard().webApp(
+    buttonText,
+    url ?? getWebAppBaseUrl(),
+  );
 }
 
-async function sendMasterPanel(ctx: BotContext, master: Master): Promise<void> {
+async function sendMasterPanel(
+  ctx: BotContext,
+  master: Master,
+): Promise<void> {
   const onboarded = await hasAiSettings(master.id);
+
   if (!onboarded || needsOnboarding(master)) {
     await ctx.reply(
       "🚀 Вітаємо в ZapysUa!\n\nНатисніть кнопку, щоб завершити реєстрацію та створити вашого AI-адміністратора.",
@@ -38,6 +39,7 @@ async function sendMasterPanel(ctx: BotContext, master: Master): Promise<void> {
     );
     return;
   }
+
   await ctx.reply(
     `Раді вас бачити, ${master.business_name}! 👋\n\nВідкрийте ваш кабінет, щоб керувати записами.`,
     { reply_markup: webAppInlineKeyboard("Відкрити кабінет") },
@@ -60,14 +62,9 @@ async function sendGuestHelp(ctx: BotContext): Promise<void> {
 
 export const bot = new Bot<BotContext>(getBotToken());
 
-// ВИКОРИСТОВУЄМО SUPABASE ДЛЯ ЗБЕРІГАННЯ СЕСІЙ
 bot.use(
   session({
     initial: (): SessionData => ({}),
-    storage: supabaseAdapter({
-      supabase: supabaseForSession,
-      table: "bot_sessions", // правильна назва поля
-    }),
   }),
 );
 
@@ -80,10 +77,12 @@ bot.command("start", async (ctx) => {
   if (payload) {
     try {
       const referredMaster = await findMasterByStartParam(payload);
+
       if (referredMaster) {
         await sendAiWelcome(ctx, referredMaster);
         return;
       }
+
       await ctx.reply(`Майстра «${payload}» не знайдено.`);
       return;
     } catch (error) {

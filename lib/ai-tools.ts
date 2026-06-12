@@ -30,13 +30,14 @@ import type {
   AiActionBook,
   AiActionCancel,
   AiActionReschedule,
-  AiActionShowServices,
   AiActionShowSlots,
   AiResponse,
+  PendingBooking,
 } from "@/types/ai";
 import type { BookingWithService } from "@/types";
 
-const SLOT_STEP_MINUTES = 30;
+const ACTION_JSON_PATTERN =
+  /\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*"action"\s*:\s*"[^"]+"(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}\s*$/;
 
 function getDayOffMessage(dateKey: string, context: MasterContext): string {
   const dateFormatted = formatDateLongWithWeekday(
@@ -50,38 +51,18 @@ function getDayOffMessage(dateKey: string, context: MasterContext): string {
 function formatAvailableSlotsMessage(
   dateKey: string,
   context: MasterContext,
-  slots: { label: string }[],
+  slotTimes: string[],
 ): string {
   const dateFormatted = formatDateLongWithWeekday(
     dateKey,
     context.master.timezone,
   );
-  if (slots.length === 0) {
+  if (slotTimes.length === 0) {
     return `На ${dateFormatted} немає вільних слотів для цієї послуги.`;
   }
-  const lines = slots.map((slot) => `• ${slot.label}`).join("\n");
+  const lines = slotTimes.map((time) => `• ${time}`).join("\n");
   return `Вільні слоти на ${dateFormatted}:\n\n${lines}`;
 }
-
-async function fetchAvailableSlotsForService(
-  masterId: string,
-  dateKey: string,
-  serviceId: string,
-  context: MasterContext,
-) {
-  const service = context.services.find((s) => s.id === serviceId);
-  if (!service) return [];
-
-  return getAvailableSlots(masterId, dateKey, service.duration_minutes, {
-    workingHours: context.workingHours,
-    timeZone: context.master.timezone,
-    serviceId,
-    slotStepMinutes: SLOT_STEP_MINUTES,
-  });
-}
-
-const ACTION_JSON_PATTERN =
-  /\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*"action"\s*:\s*"[^"]+"(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}\s*$/;
 
 export function parseAiResponse(rawText: string): AiResponse {
   const trimmed = rawText.trim();
@@ -206,27 +187,10 @@ export async function getSlotsForAction(
   action: AiActionShowSlots,
   context: MasterContext,
 ): Promise<{ label: string; startTime: string }[]> {
-  const service = context.services.find((s) => s.id === action.serviceId);
-  if (!service) return [];
-
-  const slots = await getAvailableSlots(
-    masterId,
-    action.date,
-    service.duration_minutes,
-    {
-      workingHours: context.workingHours,
-      timeZone: context.master.timezone,
-      serviceId: action.serviceId,
-      slotStepMinutes: SLOT_STEP_MINUTES,
-    },
-  );
-
+  const slots = await getAvailableSlots(masterId, action.date, action.serviceId);
   return slots.map((slot) => ({
-    startTime: slot.start,
-    label: formatTime(slot.start, context.master.timezone, {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
+    startTime: slot.startTime,
+    label: slot.time,
   }));
 }
 
@@ -261,6 +225,7 @@ async function resolveClientPhone(
 export type ExecuteActionResult = {
   message: string;
   invalidateCache?: boolean;
+  pendingBooking?: PendingBooking;
 };
 
 export async function executeAiAction(params: {
@@ -297,23 +262,18 @@ export async function executeAiAction(params: {
         };
       }
 
-      const slots = await getSlotsForAction(masterId, action, context);
-      if (slots.length === 0) {
-        const dateFormatted = formatDateLongWithWeekday(
-          action.date,
-          context.master.timezone,
-        );
-        return {
-          message: `На ${dateFormatted} немає вільних слотів для цієї послуги.`,
-        };
-      }
+      const slots = await getAvailableSlots(masterId, action.date, action.serviceId);
       return {
-        message: formatAvailableSlotsMessage(action.date, context, slots),
+        message: formatAvailableSlotsMessage(
+          action.date,
+          context,
+          slots.map((slot) => slot.time),
+        ),
       };
     }
 
     case "book":
-      return executeBookAction(
+      return prepareBookAction(
         masterId,
         action,
         context,
@@ -337,7 +297,7 @@ export async function executeAiAction(params: {
   }
 }
 
-async function executeBookAction(
+async function prepareBookAction(
   masterId: string,
   action: AiActionBook,
   context: MasterContext,
@@ -371,33 +331,93 @@ async function executeBookAction(
     return { message: getDayOffMessage(dateKey, context) };
   }
 
-  const availableSlots = await fetchAvailableSlotsForService(
+  const availableSlots = await getAvailableSlots(
     masterId,
     dateKey,
     action.serviceId,
-    context,
   );
 
   if (!isStartTimeInAvailableSlots(availableSlots, action.startTime)) {
-    const slotLabels = availableSlots.map((slot) =>
-      formatTime(slot.start, context.master.timezone, {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    );
     const dateFormatted = formatDateLongWithWeekday(
       dateKey,
       context.master.timezone,
     );
-
-    if (slotLabels.length === 0) {
-      return {
-        message: `Цей час вже зайнятий або недоступний. На ${dateFormatted} немає вільних слотів. Оберіть іншу дату.`,
-      };
-    }
-
     return {
-      message: `Цей час вже зайнятий або недоступний. Ось вільні слоти на ${dateFormatted}: ${slotLabels.join(", ")}. Оберіть один з них.`,
+      message: `Цей час (${formatTime(action.startTime, context.master.timezone)}) уже зайнятий або недоступний на ${dateFormatted}. Напишіть, якщо хочете побачити актуальні вільні слоти.`,
+    };
+  }
+
+  const phone = await resolveClientPhone(masterId, clientTelegramId);
+  if (!phone) {
+    return {
+      message:
+        "Для запису мені потрібен ваш номер телефону. Надішліть його у форматі +380XXXXXXXXX.",
+    };
+  }
+
+  const name = clientName?.trim() || `Клієнт ${clientTelegramId}`;
+  const when = formatTime(
+    bookingStart.toISOString(),
+    context.master.timezone,
+    { dateStyle: "medium", timeStyle: "short" },
+  );
+
+  return {
+    message: `Підсумок запису:\n\nПослуга: ${service.name}\nЧас: ${when}\n\nНатисніть «✅ Підтвердити запис», щоб створити запис. Запис з'явиться лише після підтвердження.`,
+    pendingBooking: {
+      masterId,
+      serviceId: action.serviceId,
+      startTime: bookingStart.toISOString(),
+      clientName: name,
+      clientPhone: phone,
+    },
+  };
+}
+
+export async function confirmPendingBooking(params: {
+  pendingBooking: PendingBooking;
+  clientTelegramId: number;
+}): Promise<ExecuteActionResult> {
+  const { pendingBooking, clientTelegramId } = params;
+  const { masterId, serviceId, startTime, clientName, clientPhone } =
+    pendingBooking;
+
+  const context = await getMasterContext(masterId, clientTelegramId.toString());
+  if (!context) {
+    return { message: "Майстра не знайдено." };
+  }
+
+  const subscriptionActive = await isMasterSubscriptionActive(masterId);
+  if (!subscriptionActive) {
+    return {
+      message:
+        "Запис тимчасово недоступний. Зверніться безпосередньо до майстра.",
+    };
+  }
+
+  const service = context.services.find((s) => s.id === serviceId);
+  if (!service) {
+    return { message: "Послугу не знайдено." };
+  }
+
+  const bookingStart = new Date(startTime);
+  if (Number.isNaN(bookingStart.getTime())) {
+    return { message: "Невірна дата або час." };
+  }
+
+  const dateKey = formatDateKey(bookingStart, context.master.timezone);
+  if (!isWorkingDay(dateKey, context.workingHours, context.master.timezone)) {
+    return { message: getDayOffMessage(dateKey, context) };
+  }
+
+  const availableSlots = await getAvailableSlots(masterId, dateKey, serviceId);
+  if (!isStartTimeInAvailableSlots(availableSlots, startTime)) {
+    const dateFormatted = formatDateLongWithWeekday(
+      dateKey,
+      context.master.timezone,
+    );
+    return {
+      message: `На жаль, цей час уже зайнятий. На ${dateFormatted} можу показати актуальні вільні слоти — напишіть дату.`,
     };
   }
 
@@ -411,8 +431,13 @@ async function executeBookAction(
     .maybeSingle();
 
   if (duplicateBooking) {
+    const when = formatTime(
+      bookingStart.toISOString(),
+      context.master.timezone,
+      { dateStyle: "medium", timeStyle: "short" },
+    );
     return {
-      message: "У вас уже є запис на цей час. Дублікат не створено.",
+      message: `У вас уже є запис на ${when}. Новий запис не створено.`,
     };
   }
 
@@ -422,20 +447,21 @@ async function executeBookAction(
     service.duration_minutes,
   );
   if (hasOverlap) {
-    return { message: "Цей час уже зайнятий. Оберіть інший слот." };
-  }
-
-  const phone = await resolveClientPhone(masterId, clientTelegramId);
-  if (!phone) {
     return {
       message:
-        "Для запису мені потрібен ваш номер телефону. Надішліть його у форматі +380XXXXXXXXX.",
+        "Цей час уже зайнятий іншим клієнтом. Напишіть, якщо хочете побачити актуальні вільні слоти.",
     };
   }
 
-  const name =
-    clientName?.trim() ||
-    `Клієнт ${clientTelegramId}`;
+  const phone = clientPhone?.trim();
+  if (!phone) {
+    return {
+      message:
+        "Для запису потрібен номер телефону. Почніть запис заново і надішліть +380XXXXXXXXX.",
+    };
+  }
+
+  const name = clientName?.trim() || `Клієнт ${clientTelegramId}`;
 
   const customer = await getOrCreateCustomerByPhone(
     masterId,
@@ -461,7 +487,7 @@ async function executeBookAction(
       client_telegram_id: clientTelegramId,
       client_name: name,
       client_phone: phone,
-      service_id: action.serviceId,
+      service_id: serviceId,
       booking_start: bookingStart.toISOString(),
       duration_minutes: service.duration_minutes,
       status: "pending",
@@ -586,33 +612,15 @@ async function executeRescheduleAction(
   }
 
   const serviceId = existing.service_id as string;
-  const availableSlots = await fetchAvailableSlotsForService(
-    masterId,
-    dateKey,
-    serviceId,
-    context,
-  );
+  const availableSlots = await getAvailableSlots(masterId, dateKey, serviceId);
 
   if (!isStartTimeInAvailableSlots(availableSlots, action.newStartTime)) {
-    const slotLabels = availableSlots.map((slot) =>
-      formatTime(slot.start, context.master.timezone, {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    );
     const dateFormatted = formatDateLongWithWeekday(
       dateKey,
       context.master.timezone,
     );
-
-    if (slotLabels.length === 0) {
-      return {
-        message: `Цей час вже зайнятий або недоступний. На ${dateFormatted} немає вільних слотів.`,
-      };
-    }
-
     return {
-      message: `Цей час вже зайнятий або недоступний. Ось вільні слоти на ${dateFormatted}: ${slotLabels.join(", ")}. Оберіть один з них.`,
+      message: `Цей час вже зайнятий або недоступний на ${dateFormatted}. Напишіть, якщо хочете побачити актуальні вільні слоти.`,
     };
   }
 
@@ -700,5 +708,3 @@ export function getAiHelpText(): string {
     "Просто напишіть, що вам потрібно, або скористайтеся кнопками."
   );
 }
-
-export { SLOT_STEP_MINUTES };

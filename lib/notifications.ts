@@ -26,7 +26,7 @@ function escapeMarkdown(text: string): string {
 // ========== НОВА ФУНКЦІЯ ДЛЯ ПІДПИСУ ==========
 function getSignature(businessName?: string): string {
   const name = businessName ? ` (${escapeMarkdown(businessName)})` : "";
-  return `З повагою, AI-адміністратор ZapysUA ${name}`;
+  return `З повагою, AI-адміністратор  ${name}`;
 }
 
 

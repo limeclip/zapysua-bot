@@ -8,6 +8,8 @@ import { parseAiResponse } from "@/lib/ai-tools";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { AiConversationMessage, AiResponse } from "@/types/ai";
 
+const LLM_ERROR_REPLY = "Сталася помилка. Спробуйте пізніше.";
+
 const FALLBACK_REPLY =
   "Вибач, зараз я не можу відповісти. Будь ласка, спробуй пізніше або звернись безпосередньо до майстра.";
 
@@ -181,21 +183,26 @@ export async function generateAIResponse(
       masterId,
       clientTelegramId,
       request: userMessage,
-      response: FALLBACK_REPLY,
+      response: LLM_ERROR_REPLY,
     });
-    return { reply: FALLBACK_REPLY };
+    return { reply: LLM_ERROR_REPLY };
   }
 
-  const parsed = parseAiResponse(rawText);
+  try {
+    const parsed = parseAiResponse(rawText);
 
-  await logAiRequest({
-    masterId,
-    clientTelegramId,
-    request: userMessage,
-    response: JSON.stringify(parsed),
-  });
+    await logAiRequest({
+      masterId,
+      clientTelegramId,
+      request: userMessage,
+      response: JSON.stringify(parsed),
+    });
 
-  return parsed;
+    return parsed;
+  } catch (error) {
+    console.error("[ai] parseAiResponse:", error);
+    return { reply: LLM_ERROR_REPLY };
+  }
 }
 
-export { FALLBACK_REPLY, MAX_HISTORY };
+export { FALLBACK_REPLY, LLM_ERROR_REPLY, MAX_HISTORY };

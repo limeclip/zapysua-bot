@@ -7,8 +7,6 @@ import { AIChatPanel } from "@/components/ai/AIChatPanel";
 import {
   Drawer,
   DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
 } from "@/components/ui/drawer";
 
 type ChatButtonProps = {
@@ -54,14 +52,10 @@ export function ChatButton({ masterId, businessName }: ChatButtonProps) {
         <DrawerContent
           className={
             isMobile
-              ? "max-h-[85vh]"
+              ? "h-[100dvh] max-h-[100dvh] rounded-none"
               : "h-full max-h-none data-[vaul-drawer-direction=right]:w-full data-[vaul-drawer-direction=right]:sm:max-w-md"
           }
         >
-          <DrawerHeader className="border-b border-border pb-3">
-            <DrawerTitle>AI-адміністратор</DrawerTitle>
-            <p className="text-sm text-muted-foreground">{businessName}</p>
-          </DrawerHeader>
           <AIChatPanel
             masterId={masterId}
             businessName={businessName}
