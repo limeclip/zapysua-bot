@@ -88,15 +88,23 @@ export function formatTime(
   timeZone: string,
   options?: Intl.DateTimeFormatOptions,
 ): string {
-  const date = new Date(iso);
-  if (isNaN(date.getTime())) return "Невірна дата";
-  const defaultOptions: Intl.DateTimeFormatOptions = {
+  return new Intl.DateTimeFormat("uk-UA", {
     timeZone,
     hour: "2-digit",
     minute: "2-digit",
-  };
-  const finalOptions = options ? { ...defaultOptions, ...options } : defaultOptions;
-  return new Intl.DateTimeFormat("uk-UA", finalOptions).format(date);
+    ...options,
+  }).format(new Date(iso));
+}
+
+export function formatDateTime(
+  iso: string,
+  timeZone: string,
+): string {
+  return new Intl.DateTimeFormat("uk-UA", {
+    timeZone,
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(iso));
 }
 
 export function formatDateLong(key: string): string {
@@ -141,21 +149,15 @@ export function formatDateLongWithWeekday(
   dateKey: string,
   timeZone = "Europe/Kyiv",
 ): string {
-  try {
-    const date = zonedDateTimeToUtc(dateKey, "12:00", timeZone);
-    if (isNaN(date.getTime())) return dateKey;
-    const datePart = new Intl.DateTimeFormat("uk-UA", {
-      timeZone,
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }).format(date);
-    const weekday = getWeekdayNameUA(dateKey, timeZone);
-    return `${datePart} (${weekday})`;
-  } catch (e) {
-    console.error("formatDateLongWithWeekday error:", e);
-    return dateKey;
-  }
+  const date = zonedDateTimeToUtc(dateKey, "12:00", timeZone);
+  const datePart = new Intl.DateTimeFormat("uk-UA", {
+    timeZone,
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+  const weekday = getWeekdayNameUA(dateKey, timeZone);
+  return `${datePart} (${weekday})`;
 }
 
 /** Локальний номер дня тижня з parseDateKey (0 = неділя … 6 = субота). */

@@ -4,28 +4,46 @@ import {
   formatDateLongWithWeekday,
   formatTime,
   getWeekdayNameUA,
-  parseDateKey,
-  zonedDateTimeToUtc,
 } from "@/lib/dates";
 import {
   parseWorkingHours,
   formatWorkingDaysList,
-  getWeekdayKeyFromDate,
   WEEKDAYS,
 } from "@/lib/working-hours";
 import { getCategoryLabel } from "@/lib/master-category";
-import type { AiSettings, AiTone, Booking, Master, Service, WorkingHours } from "@/types";
+import type {
+  AiSettings,
+  AiTone,
+  Booking,
+  Master,
+  Service,
+  WorkingHours,
+} from "@/types";
 
 export type MasterContext = {
-  master: Pick<Master, "id" | "business_name" | "category" | "working_hours" | "timezone">;
-  services: Pick<Service, "id" | "name" | "price" | "duration_minutes">[];
+  master: Pick<
+    Master,
+    "id" | "business_name" | "category" | "working_hours" | "timezone"
+  >;
+  services: Pick<
+    Service,
+    "id" | "name" | "price" | "duration_minutes"
+  >[];
   aiSettings: Pick<AiSettings, "tone" | "system_prompt">;
-  clientBookings: Pick<Booking, "id" | "service_id" | "booking_start" | "duration_minutes" | "status">[];
+  clientBookings: Pick<
+    Booking,
+    "id" | "service_id" | "booking_start" | "duration_minutes" | "status"
+  >[];
   workingHours: WorkingHours;
 };
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
-type CacheEntry = { data: MasterContext; expiresAt: number };
+
+type CacheEntry = {
+  data: MasterContext;
+  expiresAt: number;
+};
+
 const contextCache = new Map<string, CacheEntry>();
 
 const TONE_LABELS: Record<AiTone, string> = {
@@ -39,39 +57,36 @@ export function getToneLabel(tone: AiTone): string {
   return TONE_LABELS[tone] ?? tone;
 }
 
-export function formatDateContextLine(
-  dateKey: string,
+export function formatWorkingHoursString(
   workingHours: WorkingHours,
   timeZone: string,
 ): string {
-  const weekday = getWeekdayNameUA(dateKey, timeZone);
-  const dateFormatted = formatDateLongWithWeekday(dateKey, timeZone);
-  // Використовуємо локальний день тижня з dateKey (без часового поясу) для перевірки робочого дня
-  const weekdayKey = getWeekdayKeyFromDate(parseDateKey(dateKey));
-  const isWorking = workingHours[weekdayKey]?.enabled ?? false;
+  const lines = WEEKDAYS.filter(({ key }) => workingHours[key].enabled).map(
+    ({ key, label }) => {
+      const day = workingHours[key];
+      return `${label}: ${day.start}–${day.end}`;
+    },
+  );
 
-  if (!isWorking) {
-    return `${dateFormatted} – ${weekday}. Вихідний день.`;
+  if (lines.length === 0) {
+    return "графік не налаштовано";
   }
 
-  // Отримуємо години для цього дня (все ще з workingHours, але за ключем з dateKey)
-  const day = workingHours[weekdayKey];
-  return `${dateFormatted} – ${weekday}. Робочі години: ${day.start}–${day.end}.`;
-}
-
-export function formatWorkingHoursString(workingHours: WorkingHours, timeZone: string): string {
-  const lines = WEEKDAYS.filter(({ key }) => workingHours[key].enabled).map(({ key, label }) => {
-    const day = workingHours[key];
-    return `${label}: ${day.start}–${day.end}`;
-  });
-  if (lines.length === 0) return "графік не налаштовано";
   return `${lines.join("; ")} (часовий пояс: ${timeZone})`;
 }
 
-export function formatServicesForPrompt(services: MasterContext["services"]): string {
-  if (services.length === 0) return "послуги ще не додані";
+export function formatServicesForPrompt(
+  services: MasterContext["services"],
+): string {
+  if (services.length === 0) {
+    return "послуги ще не додані";
+  }
+
   return services
-    .map((s) => `- ${s.name} (id: ${s.id}) — ${s.price} грн, ${s.duration_minutes} хв`)
+    .map(
+      (service) =>
+        `- ${service.name} (id: ${service.id}) — ${service.price} грн, ${service.duration_minutes} хв`,
+    )
     .join("\n");
 }
 
@@ -79,24 +94,34 @@ export function formatClientBookingsForPrompt(
   bookings: MasterContext["clientBookings"],
   timeZone: string,
 ): string {
-  if (bookings.length === 0) return "немає майбутніх записів";
+  if (bookings.length === 0) {
+    return "немає майбутніх записів";
+  }
+
   return bookings
-    .map((b) => {
-      const dateKey = formatDateKey(new Date(b.booking_start), timeZone);
+    .map((booking) => {
+      const dateKey = formatDateKey(new Date(booking.booking_start), timeZone);
       const whenDate = formatDateLongWithWeekday(dateKey, timeZone);
-      const whenTime = formatTime(b.booking_start, timeZone, { hour: "2-digit", minute: "2-digit" });
-      return `- id: ${b.id}, ${whenDate} о ${whenTime}, статус: ${b.status}`;
+      const whenTime = formatTime(booking.booking_start, timeZone, {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      return `- id: ${booking.id}, ${whenDate} о ${whenTime}, статус: ${booking.status}`;
     })
     .join("\n");
 }
 
-async function fetchMasterContext(masterId: string, clientTelegramId?: string): Promise<MasterContext | null> {
+async function fetchMasterContext(
+  masterId: string,
+  clientTelegramId?: string,
+): Promise<MasterContext | null> {
   const { data: master, error: masterError } = await supabaseAdmin
     .from("masters")
     .select("id, business_name, category, working_hours, timezone")
     .eq("id", masterId)
     .eq("is_active", true)
     .maybeSingle();
+
   if (masterError) throw masterError;
   if (!master) return null;
 
@@ -106,6 +131,7 @@ async function fetchMasterContext(masterId: string, clientTelegramId?: string): 
     .eq("master_id", masterId)
     .eq("is_active", true)
     .order("name");
+
   if (servicesError) throw servicesError;
 
   const { data: aiSettings, error: aiError } = await supabaseAdmin
@@ -113,9 +139,11 @@ async function fetchMasterContext(masterId: string, clientTelegramId?: string): 
     .select("tone, system_prompt")
     .eq("master_id", masterId)
     .maybeSingle();
+
   if (aiError) throw aiError;
 
   let clientBookings: MasterContext["clientBookings"] = [];
+
   if (clientTelegramId) {
     const now = new Date().toISOString();
     const { data: bookings, error: bookingsError } = await supabaseAdmin
@@ -126,11 +154,15 @@ async function fetchMasterContext(masterId: string, clientTelegramId?: string): 
       .in("status", ["pending", "confirmed"])
       .gte("booking_start", now)
       .order("booking_start", { ascending: true });
+
     if (bookingsError) throw bookingsError;
     clientBookings = bookings ?? [];
   }
 
-  const workingHours = parseWorkingHours(master.working_hours as Record<string, unknown> | null);
+  const workingHours = parseWorkingHours(
+    master.working_hours as Record<string, unknown> | null,
+  );
+
   return {
     master: {
       id: master.id,
@@ -149,41 +181,66 @@ async function fetchMasterContext(masterId: string, clientTelegramId?: string): 
   };
 }
 
-export async function getMasterContext(masterId: string, clientTelegramId?: string): Promise<MasterContext | null> {
+export async function getMasterContext(
+  masterId: string,
+  clientTelegramId?: string,
+): Promise<MasterContext | null> {
   const cacheKey = `${masterId}:${clientTelegramId ?? "anon"}`;
   const cached = contextCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) return cached.data;
+  const now = Date.now();
+
+  if (cached && cached.expiresAt > now) {
+    return cached.data;
+  }
+
   const context = await fetchMasterContext(masterId, clientTelegramId);
   if (!context) return null;
-  contextCache.set(cacheKey, { data: context, expiresAt: Date.now() + CACHE_TTL_MS });
+
+  contextCache.set(cacheKey, {
+    data: context,
+    expiresAt: now + CACHE_TTL_MS,
+  });
+
   return context;
 }
 
 export function invalidateMasterContextCache(masterId: string): void {
   for (const key of contextCache.keys()) {
-    if (key.startsWith(`${masterId}:`)) contextCache.delete(key);
+    if (key.startsWith(`${masterId}:`)) {
+      contextCache.delete(key);
+    }
   }
 }
 
-export function buildDefaultSystemPrompt(context: MasterContext, toneOverride?: string): string {
-  const { master, services, aiSettings, clientBookings, workingHours } = context;
+export function buildDefaultSystemPrompt(
+  context: MasterContext,
+  toneOverride?: string,
+): string {
+  const { master, services, aiSettings, clientBookings, workingHours } =
+    context;
   const tone = toneOverride ?? getToneLabel(aiSettings.tone);
   const category = getCategoryLabel(master.category);
   const timeZone = master.timezone;
-  const workingHoursString = formatWorkingHoursString(workingHours, timeZone);
+  const workingHoursString = formatWorkingHoursString(
+    workingHours,
+    timeZone,
+  );
   const workingDaysList = formatWorkingDaysList(workingHours);
   const servicesList = formatServicesForPrompt(services);
-  const bookingsList = formatClientBookingsForPrompt(clientBookings, timeZone);
+  const bookingsList = formatClientBookingsForPrompt(
+    clientBookings,
+    timeZone,
+  );
   const todayKey = formatDateKey(new Date(), timeZone);
-  const todayContext = formatDateContextLine(todayKey, workingHours, timeZone);
+  const todayFormatted = formatDateLongWithWeekday(todayKey, timeZone);
 
   return `Ти — AI-адміністратор студії "${master.business_name}". Категорія: ${category}.
 Ти допомагаєш клієнтам записатися на послуги, змінювати/скасовувати записи,
 відповідаєш на запитання про ціни, графік роботи, вільний час.
 
-Сьогодні: ${todayContext}
+Сьогодні: ${todayFormatted}.
 Усі дати в контексті вже містять правильний день тижня (понеділок — перший день тижня).
-Ніколи не обчислюй день тижня самостійно — покладайся лише на наданий бекендом формат «дата – день тижня».
+Ніколи не обчислюй день тижня самостійно через JavaScript getDay() або інші алгоритми — покладайся лише на наданий формат «дата (день тижня)».
 
 Ось список послуг (назва - ціна (грн) - тривалість хв):
 ${servicesList}
@@ -198,11 +255,9 @@ ${bookingsList}
 Твій тон: ${tone}.
 Відповідай коротко, ввічливо, українською мовою.
 Якщо клієнт хоче записатися — запитай послугу, дату, час (використовуй формат YYYY-MM-DDThh:mm:ssZ).
-Ніколи не змінюй час, який обрав клієнт, і не пропонуй альтернативний час замість обраного.
-Якщо клієнт питає вільні слоти — використовуй дію show_slots; ніколи не вигадуй слоти самостійно.
-Слоти генерує лише бекенд з кроком, що дорівнює тривалості послуги.
+Якщо клієнт питає вільні слоти — спочатку перевір, чи дата є робочим днем; якщо ні — скажи про вихідний. Інакше поверни реальні слоти (на основі робочих годин і зайнятих записів). Слоти генеруються з кроком 30 хвилин.
 Якщо клієнт просить перенести/скасувати запис — уточни, який саме (за датою або ID).
-Після того, як клієнт надав усі необхідні дані для запису (послуга, дата, час), надішли ОДНУ дію book (запис створюється лише після підтвердження кнопкою клієнтом):
+Після того, як клієнт надав усі необхідні дані для запису (послуга, дата, час), надішли ОДНУ дію у форматі JSON (тільки в кінці відповіді, після тексту, лише один запис за раз):
 {"action":"book","serviceId":"uuid","startTime":"2025-06-12T15:00:00Z"}
 
 Для скасування: {"action":"cancel","bookingId":"uuid"}

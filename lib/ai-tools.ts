@@ -7,10 +7,11 @@ import {
   formatDateKey,
   formatDateLongWithWeekday,
   formatTime,
+  formatDateTime,
 } from "@/lib/dates";
 import {
   formatWorkingDaysList,
-  parseWorkingHours,
+  isWorkingDay,
 } from "@/lib/working-hours";
 import {
   getMasterContext,
@@ -256,16 +257,9 @@ export async function executeAiAction(params: {
       };
 
     case "show_slots": {
-      // Визначаємо, чи день робочий (без залежності від isWorkingDay)
-      const dateObj = new Date(`${action.date}T12:00:00`);
-      const weekdayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-      const weekdayKey = weekdayNames[dateObj.getDay()] as keyof typeof context.workingHours;
-      const isWorking = context.workingHours[weekdayKey]?.enabled ?? false;
-      if (!isWorking) {
-        const dateFormatted = formatDateLongWithWeekday(action.date, context.master.timezone);
-        const workingDaysList = formatWorkingDaysList(context.workingHours);
+      if (!isWorkingDay(action.date, context.workingHours, context.master.timezone)) {
         return {
-          message: `На жаль, ${dateFormatted} – вихідний день. Робочі дні: ${workingDaysList}.`,
+          message: getDayOffMessage(action.date, context),
         };
       }
 
@@ -334,13 +328,7 @@ async function prepareBookAction(
   }
 
   const dateKey = formatDateKey(bookingStart, context.master.timezone);
-  
-  // Перевірка вихідного дня (без isWorkingDay)
-  const dateObj = new Date(`${dateKey}T12:00:00`);
-  const weekdayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-  const weekdayKey = weekdayNames[dateObj.getDay()] as keyof typeof context.workingHours;
-  const isWorking = context.workingHours[weekdayKey]?.enabled ?? false;
-  if (!isWorking) {
+  if (!isWorkingDay(dateKey, context.workingHours, context.master.timezone)) {
     return { message: getDayOffMessage(dateKey, context) };
   }
 
@@ -369,13 +357,11 @@ async function prepareBookAction(
   }
 
   const name = clientName?.trim() || `Клієнт ${clientTelegramId}`;
-  const when = formatTime(
+  const when = formatDateTime(
     bookingStart.toISOString(),
     context.master.timezone,
-    { dateStyle: "medium", timeStyle: "short" },
   );
 
-  // Не створюємо запис, а повертаємо pendingBooking
   return {
     message: `Підсумок запису:\n\nПослуга: ${service.name}\nЧас: ${when}\n\nНатисніть «✅ Підтвердити запис», щоб створити запис. Запис з'явиться лише після підтвердження.`,
     pendingBooking: {
@@ -420,13 +406,7 @@ export async function confirmPendingBooking(params: {
   }
 
   const dateKey = formatDateKey(bookingStart, context.master.timezone);
-  
-  // Повторна перевірка вихідного дня
-  const dateObj = new Date(`${dateKey}T12:00:00`);
-  const weekdayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-  const weekdayKey = weekdayNames[dateObj.getDay()] as keyof typeof context.workingHours;
-  const isWorking = context.workingHours[weekdayKey]?.enabled ?? false;
-  if (!isWorking) {
+  if (!isWorkingDay(dateKey, context.workingHours, context.master.timezone)) {
     return { message: getDayOffMessage(dateKey, context) };
   }
 
@@ -441,7 +421,6 @@ export async function confirmPendingBooking(params: {
     };
   }
 
-  // Захист від дублікатів
   const { data: duplicateBooking } = await supabaseAdmin
     .from("bookings")
     .select("id")
@@ -451,16 +430,16 @@ export async function confirmPendingBooking(params: {
     .in("status", ["pending", "confirmed"])
     .maybeSingle();
 
-  if (duplicateBooking) {
-    const when = formatTime(
-      bookingStart.toISOString(),
-      context.master.timezone,
-      { dateStyle: "medium", timeStyle: "short" },
-    );
-    return {
-      message: `У вас уже є запис на ${when}. Новий запис не створено.`,
-    };
-  }
+    if (duplicateBooking) {
+      const when = formatDateTime(
+        bookingStart.toISOString(),
+        context.master.timezone,
+      );
+    
+      return {
+        message: `У вас уже є запис на ${when}. Новий запис не створено.`,
+      };
+    }
 
   const hasOverlap = await findOverlappingBooking(
     masterId,
@@ -628,12 +607,7 @@ async function executeRescheduleAction(
   }
 
   const dateKey = formatDateKey(bookingStart, context.master.timezone);
-  
-  const dateObj = new Date(`${dateKey}T12:00:00`);
-  const weekdayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-  const weekdayKey = weekdayNames[dateObj.getDay()] as keyof typeof context.workingHours;
-  const isWorking = context.workingHours[weekdayKey]?.enabled ?? false;
-  if (!isWorking) {
+  if (!isWorkingDay(dateKey, context.workingHours, context.master.timezone)) {
     return { message: getDayOffMessage(dateKey, context) };
   }
 
@@ -692,10 +666,9 @@ async function executeRescheduleAction(
 
   if (createError) throw createError;
 
-  const when = formatTime(
+  const when = formatDateTime(
     bookingStart.toISOString(),
     context.master.timezone,
-    { dateStyle: "medium", timeStyle: "short" },
   );
 
   invalidateMasterContextCache(masterId);
@@ -715,10 +688,10 @@ export function formatClientBookingsText(context: MasterContext): string {
     .map((booking) => {
       const service = context.services.find((s) => s.id === booking.service_id);
       const serviceName = service?.name ?? "Послуга";
-      const when = formatTime(booking.booking_start, context.master.timezone, {
-        dateStyle: "medium",
-        timeStyle: "short",
-      });
+      const when = formatDateTime(
+        booking.booking_start,
+        context.master.timezone,
+      );
       return `• ${serviceName} — ${when} (${booking.status})`;
     })
     .join("\n");
