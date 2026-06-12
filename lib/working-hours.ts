@@ -104,16 +104,29 @@ export function getWeekdayKeyInTimezone(
   return dayName as keyof WorkingHours;
 }
 
+/**
+ * Визначає, чи є день робочим, використовуючи тільки dateKey (YYYY-MM-DD)
+ * без залежності від часового поясу. Це єдине джерело правди для AI.
+ */
+export function isWorkingDayByDateKey(
+  dateKey: string,
+  workingHours: WorkingHours,
+): boolean {
+  const date = parseDateKey(dateKey);
+  const weekdayKey = getWeekdayKeyFromDate(date);
+  return workingHours[weekdayKey]?.enabled ?? false;
+}
+
+/**
+ * @deprecated Використовуйте isWorkingDayByDateKey замість цієї функції.
+ * Залишено для зворотної сумісності.
+ */
 export function isWorkingDay(
   dateKey: string,
   workingHours: WorkingHours,
   timeZone = "Europe/Kyiv",
 ): boolean {
-  const weekday = getWeekdayKeyInTimezone(
-    zonedDateTimeToUtc(dateKey, "12:00", timeZone),
-    timeZone,
-  );
-  return workingHours[weekday]?.enabled ?? false;
+  return isWorkingDayByDateKey(dateKey, workingHours);
 }
 
 export function formatWorkingDaysList(workingHours: WorkingHours): string {

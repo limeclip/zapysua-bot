@@ -5,13 +5,15 @@ import {
   formatDateLongWithWeekday,
   formatTime,
   parseDateFromUserText,
+  parseDateKey,
   zonedDateTimeToUtc,
 } from "@/lib/dates";
 import {
   parseWorkingHours,
   formatWorkingDaysList,
+  getWeekdayKeyFromDate,
   getWeekdayKeyInTimezone,
-  isWorkingDay,
+  isWorkingDayByDateKey,
   WEEKDAYS,
 } from "@/lib/working-hours";
 import { getCategoryLabel } from "@/lib/master-category";
@@ -67,13 +69,13 @@ export function formatDateContextLine(
   timeZone: string,
 ): string {
   const formatted = formatDateLongWithWeekday(dateKey, timeZone);
-  if (!isWorkingDay(dateKey, workingHours, timeZone)) {
+  // ВИКОРИСТОВУЄМО isWorkingDayByDateKey БЕЗ ГОДИННИКА
+  const isWorking = isWorkingDayByDateKey(dateKey, workingHours);
+  if (!isWorking) {
     return `${formatted} — вихідний день`;
   }
-  const weekdayKey = getWeekdayKeyInTimezone(
-    zonedDateTimeToUtc(dateKey, "12:00", timeZone),
-    timeZone,
-  );
+  const date = parseDateKey(dateKey);
+  const weekdayKey = getWeekdayKeyFromDate(date);
   const day = workingHours[weekdayKey];
   return `${formatted} — робочий день, ${day.start}–${day.end}`;
 }
@@ -285,6 +287,7 @@ export function buildDefaultSystemPrompt(
   const calendarReference = buildCalendarReference(context);
 
   return `Ти — AI-адміністратор студії "${master.business_name}". Категорія: ${category}.
+
 Ти допомагаєш клієнтам записатися на послуги, змінювати/скасовувати записи,
 відповідаєш на запитання про ціни, графік роботи, вільний час.
 
@@ -312,6 +315,7 @@ ${bookingsList}
 Якщо клієнт питає вільні слоти — використовуй ТІЛЬКИ дію show_slots. Ніколи не перелічуй слоти у тексті.
 Слоти генерує backend з кроком = тривалість послуги.
 Якщо клієнт просить перенести/скасувати запис — уточни, який саме (за датою або ID).
+
 Після збору даних для запису надішли ОДНУ дію JSON (в кінці відповіді):
 {"action":"book","serviceId":"uuid","date":"2026-06-19","requestedTime":"11:00"}
 
@@ -319,6 +323,7 @@ ${bookingsList}
 Для перенесення: {"action":"reschedule","bookingId":"uuid","date":"2026-06-19","requestedTime":"11:00"}
 Для показу списку послуг: {"action":"show_services"}
 Для показу вільних слотів на конкретну дату: {"action":"show_slots","serviceId":"uuid","date":"2025-06-12"}
+
 Запис створюється лише після підтвердження кнопкою клієнтом.
 Якщо не впевнений — відповідай текстом без дії.`;
 }
