@@ -197,13 +197,19 @@ export async function generateAIResponse(
   try {
     const parsed = parseAiResponse(rawText);
 
+    if (parsed.action) {
+      parsed.reply = parsed.reply
+        .replace(/\{"action":[\s\S]*?\}/g, "")
+        .trim();
+    }
+    
     await logAiRequest({
       masterId,
       clientTelegramId,
       request: userMessage,
       response: JSON.stringify(parsed),
     });
-
+    
     return parsed;
   } catch (error) {
     console.error("[ai] parseAiResponse:", error);

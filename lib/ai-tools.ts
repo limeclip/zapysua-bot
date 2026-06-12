@@ -111,7 +111,7 @@ export function parseAiResponse(rawText: string): AiResponse {
   }
 
   const jsonPart = match[0].trim();
-  const reply = trimmed.slice(0, trimmed.length - jsonPart.length).trim();
+  const reply = trimmed.replace(jsonPart, "").trim();
 
   try {
     const parsed = JSON.parse(jsonPart) as Record<string, unknown>;
