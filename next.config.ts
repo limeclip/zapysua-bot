@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: [
-    "3146-176-126-148-168.ngrok-free.app", // ⚠️ ЗАМІНІТЬ НА ВАШ АДРЕС ІЗ ТЕРМІНАЛА
+    "c7b7-176-126-148-39.ngrok-free.app", // ⚠️ ЗАМІНІТЬ НА ВАШ АДРЕС ІЗ ТЕРМІНАЛА
     "zapysua-bot.vercel.app",
     "localhost",
     "127.0.0.1",

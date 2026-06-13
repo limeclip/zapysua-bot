@@ -52,7 +52,7 @@ export function ChatButton({ masterId, businessName }: ChatButtonProps) {
         <DrawerContent
           className={
             isMobile
-              ? "h-[100dvh] max-h-[100dvh] rounded-none"
+              ? "h-[100vh] max-h-[100dvh] rounded-none min-h-screen"
               : "h-full max-h-none data-[vaul-drawer-direction=right]:w-full data-[vaul-drawer-direction=right]:sm:max-w-md"
           }
         >

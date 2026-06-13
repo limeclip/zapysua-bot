@@ -11,6 +11,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { ApiErrorState } from "@/components/shared/ApiErrorState";
 import { BookingStatusBadge } from "@/components/bookings/BookingStatusBadge";
 import { BOOKING_STATUS_LABELS } from "@/lib/booking-status";
@@ -43,6 +52,8 @@ type CustomerDetailResponse = {
   bookings: BookingWithService[];
 };
 
+const ITEMS_PER_PAGE = 10;
+
 function hasBookingActions(status: BookingStatus): boolean {
   return status === "pending" || status === "confirmed";
 }
@@ -59,6 +70,7 @@ export function ClientDetailContent({
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const load = useCallback(async () => {
     try {
@@ -69,6 +81,7 @@ export function ClientDetailContent({
       setCustomer(data.customer);
       setBookings(data.bookings);
       setError(null);
+      setCurrentPage(1); // скидаємо на першу сторінку після завантаження
     } catch (err) {
       setError(err instanceof Error ? err.message : "Помилка завантаження");
     } finally {
@@ -114,6 +127,84 @@ export function ClientDetailContent({
     },
     [],
   );
+
+  // Пагінація
+  const totalPages = Math.ceil(bookings.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const currentBookings = bookings.slice(startIndex, endIndex);
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const renderPaginationItems = () => {
+    const items = [];
+    const maxVisible = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+    if (endPage - startPage + 1 < maxVisible) {
+      startPage = Math.max(1, endPage - maxVisible + 1);
+    }
+
+    if (startPage > 1) {
+      items.push(
+        <PaginationItem key="first">
+          <PaginationLink
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              goToPage(1);
+            }}
+          >
+            1
+          </PaginationLink>
+        </PaginationItem>,
+      );
+      if (startPage > 2) {
+        items.push(<PaginationEllipsis key="ellipsis-start" />);
+      }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      items.push(
+        <PaginationItem key={i}>
+          <PaginationLink
+            href="#"
+            isActive={i === currentPage}
+            onClick={(e) => {
+              e.preventDefault();
+              goToPage(i);
+            }}
+          >
+            {i}
+          </PaginationLink>
+        </PaginationItem>,
+      );
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        items.push(<PaginationEllipsis key="ellipsis-end" />);
+      }
+      items.push(
+        <PaginationItem key="last">
+          <PaginationLink
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              goToPage(totalPages);
+            }}
+          >
+            {totalPages}
+          </PaginationLink>
+        </PaginationItem>,
+      );
+    }
+    return items;
+  };
 
   if (loading) {
     return (
@@ -162,12 +253,7 @@ export function ClientDetailContent({
               {customer.phone}
             </a>
           )}
-          {customer.telegram_id && (
-            <p className="flex items-center gap-2 text-xs text-zinc-500">
-              <Send className="h-3.5 w-3.5" />
-              Telegram ID: {customer.telegram_id}
-            </p>
-          )}
+          {/* Telegram ID або username (за бажанням) */}
         </div>
       </Card>
 
@@ -195,97 +281,132 @@ export function ClientDetailContent({
             </p>
           </Card>
         ) : (
-          <ul className="space-y-3">
-            {bookings.map((booking) => {
-              const busy = updatingId === booking.id;
-              const showMenu = hasBookingActions(booking.status);
+          <>
+            <ul className="space-y-3">
+              {currentBookings.map((booking) => {
+                const busy = updatingId === booking.id;
+                const showMenu = hasBookingActions(booking.status);
 
-              return (
-                <Card key={booking.id}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                        {formatBookingDateTime(booking.booking_start, timeZone)}
-                      </p>
-                      <p className="mt-0.5 text-sm text-zinc-600 dark:text-zinc-400">
-                        {booking.services?.name ?? "Послуга"}
-                      </p>
-                      {booking.services?.price != null && (
-                        <p className="mt-1 text-xs text-zinc-500">
-                          {booking.services.price} грн
+                return (
+                  <Card key={booking.id}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                          {formatBookingDateTime(booking.booking_start, timeZone)}
                         </p>
-                      )}
+                        <p className="mt-0.5 text-sm text-zinc-600 dark:text-zinc-400">
+                          {booking.services?.name ?? "Послуга"}
+                        </p>
+                        {booking.services?.price != null && (
+                          <p className="mt-1 text-xs text-zinc-500">
+                            {booking.services.price} грн
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <BookingStatusBadge status={booking.status} />
+                        {showMenu && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-[14px] text-zinc-500 transition-colors hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800"
+                              disabled={busy}
+                              aria-label="Дії з записом"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {booking.status === "pending" && (
+                                <>
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      updateStatus(booking.id, "confirmed")
+                                    }
+                                  >
+                                    <Check className="h-4 w-4" />
+                                    Підтвердити
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      updateStatus(booking.id, "cancelled")
+                                    }
+                                  >
+                                    <X className="h-4 w-4" />
+                                    Скасувати
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {booking.status === "confirmed" && (
+                                <>
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      updateStatus(booking.id, "completed")
+                                    }
+                                  >
+                                    <CheckCircle2 className="h-4 w-4" />
+                                    Позначити як виконано
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      updateStatus(booking.id, "no_show")
+                                    }
+                                  >
+                                    <UserX className="h-4 w-4" />
+                                    Не з&apos;явився
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      updateStatus(booking.id, "cancelled")
+                                    }
+                                  >
+                                    <X className="h-4 w-4" />
+                                    Скасувати
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <BookingStatusBadge status={booking.status} />
-                      {showMenu && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-[14px] text-zinc-500 transition-colors hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800"
-                            disabled={busy}
-                            aria-label="Дії з записом"
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {booking.status === "pending" && (
-                              <>
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    updateStatus(booking.id, "confirmed")
-                                  }
-                                >
-                                  <Check className="h-4 w-4" />
-                                  Підтвердити
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    updateStatus(booking.id, "cancelled")
-                                  }
-                                >
-                                  <X className="h-4 w-4" />
-                                  Скасувати
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                            {booking.status === "confirmed" && (
-                              <>
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    updateStatus(booking.id, "completed")
-                                  }
-                                >
-                                  <CheckCircle2 className="h-4 w-4" />
-                                  Позначити як виконано
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    updateStatus(booking.id, "no_show")
-                                  }
-                                >
-                                  <UserX className="h-4 w-4" />
-                                  Не з&apos;явився
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    updateStatus(booking.id, "cancelled")
-                                  }
-                                >
-                                  <X className="h-4 w-4" />
-                                  Скасувати
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </ul>
+                  </Card>
+                );
+              })}
+            </ul>
+            {totalPages > 1 && (
+              <Pagination className="mt-4">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        goToPage(currentPage - 1);
+                      }}
+                      className={
+                        currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                      }
+                    />
+                  </PaginationItem>
+                  {renderPaginationItems()}
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        goToPage(currentPage + 1);
+                      }}
+                      className={
+                        currentPage === totalPages
+                          ? "pointer-events-none opacity-50"
+                          : ""
+                      }
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
+          </>
         )}
       </section>
     </div>

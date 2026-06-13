@@ -91,10 +91,10 @@ export function WeekCalendar({
       <div className="flex gap-2 overflow-x-auto pb-1">
         {WEEKDAY_LABELS.map((label) => (
           <div key={label} className="flex min-w-[3rem] flex-1 flex-col items-center">
-              <Skeleton className="mt-1 h-3 w-6" />
+            <Skeleton className="mt-1 h-3 w-6" />
             <Skeleton className="h-10 w-10 rounded-full mt-1" />
             {/* <Skeleton className="mt-2 h-3 w-6" /> */}
-          
+
           </div>
         ))}
       </div>
@@ -109,7 +109,7 @@ export function WeekCalendar({
         </p>
       )}
 
-      <div className="flex gap-2 overflow-x-auto   pb-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex gap-2 overflow-x-auto -mt-4  pb-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {weekDays.map((day) => (
           <button
             key={day.dateKey}
@@ -121,7 +121,7 @@ export function WeekCalendar({
               "p-2 hover:bg-background rounded-xl hover:shadow-sm hover:border hover:border-border/40 border border-transparent",
               day.isToday &&
               "bg-background border border-border/40 rounded-xl shadow-sm dark:shadow-zinc-800",
-              )}>
+            )}>
               <div>
                 <span className="text-sm text-muted-foreground font-semibold">
                   {day.label}

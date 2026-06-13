@@ -7,6 +7,15 @@ import { RescheduleBookingModal } from "@/components/client/RescheduleBookingMod
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiErrorState } from "@/components/shared/ApiErrorState";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import type { ClientBooking } from "@/types";
 import { Calendar } from "lucide-react";
 
@@ -14,6 +23,8 @@ type ClientBookingsListProps = {
   masterId?: string;
   showMaster?: boolean;
 };
+
+const ITEMS_PER_PAGE = 10;
 
 export function ClientBookingsList({
   masterId,
@@ -26,6 +37,7 @@ export function ClientBookingsList({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [rescheduleBooking, setRescheduleBooking] =
     useState<ClientBooking | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const load = useCallback(async () => {
     try {
@@ -38,6 +50,7 @@ export function ClientBookingsList({
       );
       setBookings(data.bookings);
       setError(null);
+      setCurrentPage(1); // скидаємо на першу сторінку після оновлення
     } catch (err) {
       setError(err instanceof Error ? err.message : "Помилка завантаження");
     } finally {
@@ -74,6 +87,86 @@ export function ClientBookingsList({
     }
   };
 
+  // Пагінація
+  const totalPages = Math.ceil(bookings.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const currentBookings = bookings.slice(startIndex, endIndex);
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      // Прокрутка до верху списку (опціонально)
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const renderPaginationItems = () => {
+    const items = [];
+    const maxVisible = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+    if (endPage - startPage + 1 < maxVisible) {
+      startPage = Math.max(1, endPage - maxVisible + 1);
+    }
+
+    if (startPage > 1) {
+      items.push(
+        <PaginationItem key="first">
+          <PaginationLink
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              goToPage(1);
+            }}
+          >
+            1
+          </PaginationLink>
+        </PaginationItem>,
+      );
+      if (startPage > 2) {
+        items.push(<PaginationEllipsis key="ellipsis-start" />);
+      }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      items.push(
+        <PaginationItem key={i}>
+          <PaginationLink
+            href="#"
+            isActive={i === currentPage}
+            onClick={(e) => {
+              e.preventDefault();
+              goToPage(i);
+            }}
+          >
+            {i}
+          </PaginationLink>
+        </PaginationItem>,
+      );
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        items.push(<PaginationEllipsis key="ellipsis-end" />);
+      }
+      items.push(
+        <PaginationItem key="last">
+          <PaginationLink
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              goToPage(totalPages);
+            }}
+          >
+            {totalPages}
+          </PaginationLink>
+        </PaginationItem>,
+      );
+    }
+    return items;
+  };
+
   if (loading) {
     return (
       <div className="space-y-3">
@@ -101,19 +194,56 @@ export function ClientBookingsList({
           </p>
         </Card>
       ) : (
-        <ul className="space-y-3">
-          {bookings.map((booking) => (
-            <li key={booking.id}>
-              <ClientBookingCard
-                booking={booking}
-                showMaster={showMaster}
-                cancelling={cancellingId === booking.id}
-                onCancel={handleCancel}
-                onReschedule={setRescheduleBooking}
-              />
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="space-y-3">
+            {currentBookings.map((booking) => (
+              <li key={booking.id}>
+                <ClientBookingCard
+                  booking={booking}
+                  showMaster={showMaster}
+                  cancelling={cancellingId === booking.id}
+                  onCancel={handleCancel}
+                  onReschedule={setRescheduleBooking}
+                />
+              </li>
+            ))}
+          </ul>
+          {totalPages > 1 && (
+            <Pagination className="mt-4">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      goToPage(currentPage - 1);
+                    }}
+                    aria-disabled={currentPage === 1}
+                    className={
+                      currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                    }
+                  />
+                </PaginationItem>
+                {renderPaginationItems()}
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      goToPage(currentPage + 1);
+                    }}
+                    aria-disabled={currentPage === totalPages}
+                    className={
+                      currentPage === totalPages
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
+        </>
       )}
 
       {rescheduleBooking && (

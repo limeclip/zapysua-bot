@@ -107,30 +107,9 @@ export function HomeTab({ master, onNavigateTab }: HomeTabProps) {
 
   return (
     <div className="space-y-4 animate-in fade-in relative">
-      {/* <div className="absolute -top-10 right-0 left-0 inset-0 -z-10 -mx-4 dark:hidden">
-        <div className="h-screen  w-full flex bg-linear-to-br  from-transparent from-10% via-[#6ca6fc]/10 dark:via-[#556a7d]/20 via-30%
-         to-[#ffd75e]/10 dark:to-[#625c42]/20 to-90% animate-gradient-x"  />
-      </div> */}
-      <div className="-mt-2">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Вітаємо.  Огляд вашого тижня
-          </p>
-          <p className="text-sm text-zinc-500">
-            {new Date().toLocaleDateString("uk-UA", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              timeZone,
-            })}
-          </p>
-        </div>
-      </div>
 
       <SubscriptionGate master={master}>
         {error && <ApiErrorState message={error} onRetry={load} />}
-
-       
         <WeekCalendar
           master={master}
           weekBookings={weekBookings}
@@ -140,6 +119,57 @@ export function HomeTab({ master, onNavigateTab }: HomeTabProps) {
           onBookingDeleted={handleBookingDeleted}
         />
 
+        <div className="-mt-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              Огляд вашого тижня
+            </p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              {new Date().toLocaleDateString("uk-UA", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                timeZone,
+              })}
+            </p>
+          </div>
+        </div>
+
+        <PendingBookingsCard
+          master={master}
+          onView={() => onNavigateTab("bookings", { showPending: true })}
+        />
+
+        {weekStats && (
+          <div className="grid grid-cols-3 gap-2">
+            <Card className="p-3 text-center">
+              <p className="text-lg font-semibold">
+                {weekStats.total_bookings}
+              </p>
+              <p className="text-sm text-zinc-500">За тиждень</p>
+            </Card>
+            <Card className="p-3 text-center">
+              <p className="text-lg font-semibold">
+                {weekStats.confirmed_percent}%
+              </p>
+              <p className="text-sm text-zinc-500 flex items-center justify-center gap-1">
+                <TrendingUp className="h-3 w-3" />
+                Підтверд.
+              </p>
+            </Card>
+            <Card className="p-3 text-center">
+              <p className="text-lg font-semibold">
+                {weekStats.revenue != null
+                  ? `${weekStats.revenue}`
+                  : "—"}
+              </p>
+              <p className="text-sm text-zinc-500 flex items-center justify-center gap-1">
+                <CircleDollarSign className="h-3 w-3" />
+                {weekStats.revenue != null ? "грн" : "Виручка"}
+              </p>
+            </Card>
+          </div>
+        )}
         {loading ? (
           <div className="space-y-3">
             <Skeleton className="h-24 w-full" />
@@ -148,53 +178,17 @@ export function HomeTab({ master, onNavigateTab }: HomeTabProps) {
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between -mt-2">
+            <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 Сьогоднішні записи: {todayBookings.length}
               </p>
+             
               <Link href="/bookings">
                 <Button variant="ghost" size="sm" className="cursor-pointer">
                   Всі записи
                 </Button>
               </Link>
             </div>
-
-            <PendingBookingsCard
-          master={master}
-          onView={() => onNavigateTab("bookings", { showPending: true })}
-        />
-
-
-            {weekStats && (
-              <div className="grid grid-cols-3 gap-2">
-                <Card className="p-3 text-center">
-                  <p className="text-lg font-semibold">
-                    {weekStats.total_bookings}
-                  </p>
-                  <p className="text-sm text-zinc-500">За тиждень</p>
-                </Card>
-                <Card className="p-3 text-center">
-                  <p className="text-lg font-semibold">
-                    {weekStats.confirmed_percent}%
-                  </p>
-                  <p className="text-sm text-zinc-500 flex items-center justify-center gap-1">
-                    <TrendingUp className="h-3 w-3" />
-                    Підтверд.
-                  </p>
-                </Card>
-                <Card className="p-3 text-center">
-                  <p className="text-lg font-semibold">
-                    {weekStats.revenue != null
-                      ? `${weekStats.revenue}`
-                      : "—"}
-                  </p>
-                  <p className="text-sm text-zinc-500 flex items-center justify-center gap-1">
-                    <CircleDollarSign className="h-3 w-3" />
-                    {weekStats.revenue != null ? "грн" : "Виручка"}
-                  </p>
-                </Card>
-              </div>
-            )}
 
             {todayBookings.length === 0 ? (
               <Card>

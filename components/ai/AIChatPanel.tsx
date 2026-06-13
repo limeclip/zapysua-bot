@@ -387,7 +387,7 @@ export function AIChatPanel({
   const canClearHistory = messages.length > 0;
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col ">
       <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-base font-semibold text-foreground">
@@ -506,7 +506,7 @@ export function AIChatPanel({
 
       <form
         onSubmit={handleSubmit}
-        className="flex items-end gap-2 border-t border-border p-4"
+        className="flex items-center gap-2 border-t border-border p-4"
       >
         <Textarea
           value={input}
@@ -524,11 +524,12 @@ export function AIChatPanel({
         />
         <Button
           type="submit"
-          size="icon"
+          className="h-12 w-12 rounded-full"
           disabled={loading || !input.trim()}
           aria-label="Надіслати"
+          size="icon"
         >
-          <Send className="h-4 w-4" />
+          <Send className="h-7 w-7" />
         </Button>
       </form>
 

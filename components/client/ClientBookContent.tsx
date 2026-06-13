@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api/client";
@@ -75,6 +75,9 @@ export function ClientBookContent({ slug }: ClientBookContentProps) {
       ? profile.services.slice(0, 4)
       : (profile?.services ?? []);
   const hasMoreServices = (profile?.services.length ?? 0) > 4;
+
+  const timeSectionRef = useRef<HTMLDivElement>(null);
+  const dataSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -225,6 +228,24 @@ export function ClientBookContent({ slug }: ClientBookContentProps) {
     }
   };
 
+  // Прокрутка до блоку з часом після вибору дати
+  useEffect(() => {
+    if (selectedDate && !slotsLoading && timeSectionRef.current) {
+      setTimeout(() => {
+        timeSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [selectedDate, slotsLoading]);
+
+  // Прокрутка до блоку з даними після вибору часу
+  useEffect(() => {
+    if (selectedSlot && dataSectionRef.current) {
+      setTimeout(() => {
+        dataSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [selectedSlot]);
+
   if (loading) return <ClientMasterSkeleton />;
   if (notFound || !profile) return <ClientNotFound />;
 
@@ -281,8 +302,8 @@ export function ClientBookContent({ slug }: ClientBookContentProps) {
                 className={cn(
                   "w-full rounded-[14px] border p-4 text-left transition-all",
                   selected
-                    ? "border-[#6ca6fc] border-2 bg-zinc-50 dark:border-[#6ca6fc] dark:bg-zinc-800"
-                    : "border-zinc-200 hover:border-[#6ca6fc] dark:border-zinc-700 dark:hover:border-[#6ca6fc]",
+                    ? "border-[#ffd75e] border-2 bg-zinc-50 dark:border-[#ffd75e] dark:bg-zinc-800"
+                    : "border-zinc-200 hover:border-[#ffd75e] dark:border-zinc-700 dark:hover:border-[#ffd75e]",
                 )}
               >
                 <div className="flex items-center justify-between gap-2">
@@ -299,7 +320,7 @@ export function ClientBookContent({ slug }: ClientBookContentProps) {
                     </p>
                   </div>
                   {selected && (
-                    <Check className="h-5 w-5 shrink-0 text-[#6ca6fc]" />
+                    <Check className="h-5 w-5 shrink-0 text-amber-500" />
                   )}
                 </div>
               </button>
@@ -404,7 +425,7 @@ export function ClientBookContent({ slug }: ClientBookContentProps) {
       )}
 
       {selectedDate && selectedService && (
-        <section className="space-y-3">
+        <section ref={timeSectionRef} className="space-y-3">
           <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
             3. Час
           </h2>
@@ -446,7 +467,7 @@ export function ClientBookContent({ slug }: ClientBookContentProps) {
       )}
 
       {selectedSlot && (
-        <section className="space-y-3">
+        <section ref={dataSectionRef} className="space-y-3">
           <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
             4. Ваші дані
           </h2>

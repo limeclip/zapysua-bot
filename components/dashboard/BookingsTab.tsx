@@ -98,8 +98,6 @@ export function BookingsTab({
           </Link>
         </div>
 
-
-
         <CalendarView
           master={master}
           onOpenSettings={() => onNavigateTab("settings")}

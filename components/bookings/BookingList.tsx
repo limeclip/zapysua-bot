@@ -124,10 +124,10 @@ export function BookingList({
 
         const byPhone = booking.client_phone
           ? listData.customers.find(
-              (c) =>
-                c.phone?.replace(/\s+/g, "") ===
-                booking.client_phone?.replace(/\s+/g, ""),
-            )
+            (c) =>
+              c.phone?.replace(/\s+/g, "") ===
+              booking.client_phone?.replace(/\s+/g, ""),
+          )
           : null;
         const byName = listData.customers.find(
           (c) => c.name.toLowerCase() === booking.client_name.toLowerCase(),
@@ -218,7 +218,7 @@ export function BookingList({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       align="end"
-                      className={compact ? "z-[70]" : undefined}
+                      className="z-[99999]"
                     >
                       <DropdownMenuItem
                         onClick={() => openCustomerProfile(booking)}

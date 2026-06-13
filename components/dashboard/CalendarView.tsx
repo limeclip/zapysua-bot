@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { apiFetch } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -51,6 +51,18 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
   const [freeSlotsLoading, setFreeSlotsLoading] = useState(false);
   const [freeSlotsServiceId, setFreeSlotsServiceId] = useState<string | null>(null);
   const [services, setServices] = useState<Service[]>([]);
+  const slotsContainerRef = useRef<HTMLDivElement>(null);
+
+
+  // Ефект для прокрутки до слотів після їх завантаження
+  useEffect(() => {
+    if (showFreeSlots && !freeSlotsLoading && freeSlots.length > 0 && slotsContainerRef.current) {
+      // Невелика затримка для завершення рендеру
+      setTimeout(() => {
+        slotsContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [showFreeSlots, freeSlotsLoading, freeSlots.length]);
 
   const loadMonth = useCallback(async () => {
     try {
@@ -295,11 +307,11 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
           role="dialog"
           aria-modal="true"
         >
-          <Card className="flex max-h-[70vh] w-full max-w-lg flex-col overflow-visible animate-in fade-in">
+          <Card className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-visible animate-in fade-in">
             <div className="mb-4 flex shrink-0 items-center justify-between gap-2">
               <div>
                 <h3 className="font-semibold">{formatDateLong(selectedDay)}</h3>
-                <p className="text-xs text-zinc-500">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
                   {formatBookingCount(selectedBookings.length)}
                 </p>
               </div>
@@ -323,7 +335,7 @@ export function CalendarView({ master, onOpenSettings }: CalendarViewProps) {
               />
 
               {showFreeSlots && (
-                <div className="mt-4 space-y-2 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+                <div ref={slotsContainerRef}className="mt-4 space-y-2 border-t border-zinc-100 pt-4 dark:border-zinc-800">
                   <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     Вільний час
                   </p>

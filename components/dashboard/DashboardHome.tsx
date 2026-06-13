@@ -9,7 +9,7 @@ import { ClientsTab } from "@/components/dashboard/ClientsTab";
 import { StatisticsTab } from "@/components/dashboard/StatisticsTab";
 import { SettingsTab } from "@/components/dashboard/SettingsTab";
 import type { MasterWithMeta } from "@/types";
-import { Bell, Calendar, LinkIcon, Settings } from "lucide-react";
+import {  Calendar, LinkIcon, Settings } from "lucide-react";
 import { Button } from "../ui/button";
 import { getClientStartAppLink } from "@/lib/referral";
 import { isSubscriptionActive } from "@/lib/subscription";
@@ -63,8 +63,8 @@ export function DashboardHome({ master, onMasterUpdate }: DashboardHomeProps) {
 
     <div className="mx-auto min-h-screen w-full max-w-lg pb-24 relative">
       <div className="absolute top-0 right-0 left-0 inset-0 -z-10 -mx-4 ">
-        <div className="min-h-screen h-full w-full flex bg-linear-to-br  from-transparent from-10% via-[#6ca6fc]/15 dark:via-[#556a7d]/20 via-30%
-         to-[#ffd75e]/15 dark:to-[#625c42]/20 to-90% animate-gradient-x"  />
+        <div className="min-h-screen h-full w-full flex bg-linear-to-br  from-transparent from-10% via-[#6ca6fc]/10 to-[#ffd75e]/10 dark:via-[#556a7d]/10 via-30%
+          dark:to-[#625c42]/10 to-90% animate-gradient-x"  />
       </div>
       <header className="sticky top-0 z-40 border-0 border-zinc-200/80  px-4 py-3 backdrop-blur-xl dark:border-zinc-800">
         <div className="flex items-center justify-between">
@@ -73,7 +73,7 @@ export function DashboardHome({ master, onMasterUpdate }: DashboardHomeProps) {
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={master.logo_url}
-                alt=""
+                alt="Logo"
                 className="h-9 w-9 rounded-full object-cover"
               />
             ) : (

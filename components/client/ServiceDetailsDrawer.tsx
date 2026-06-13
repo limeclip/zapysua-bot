@@ -93,10 +93,10 @@ export function ServiceDetailsDrawer({
 
         <DrawerFooter className="border-t border-zinc-100 dark:border-zinc-800">
           <Link href={bookingUrl} onClick={onClose}>
-            <Button className="w-full">Записатися</Button>
+            <Button className="w-full h-12">Записатися</Button>
           </Link>
           <DrawerClose asChild>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full h-12">
               Закрити
             </Button>
           </DrawerClose>

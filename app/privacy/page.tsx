@@ -61,7 +61,7 @@ export default function PrivacyPage() {
             <li>Видалити ваш акаунт та всі пов&apos;язані дані.</li>
             <li>Відкликати згоду на обробку (надіславши запит на контактну адресу).</li>
           </ul>
-          <p className="mt-2">Для цього зверніться до нас: <strong>support@zapysua.com</strong> (або вкажіть ваш Telegram @ZapysUASupport).</p>
+          <p className="mt-2">Для цього зверніться до нас: <strong>uazapys@gmail.com</strong> (або вкажіть ваш Telegram @ZapysUASupport).</p>
         </section>
 
         <section className="mb-8">
@@ -78,8 +78,8 @@ export default function PrivacyPage() {
           <h2 className="text-xl font-semibold mb-3">9. Контакти</h2>
           <p>Якщо у вас виникли питання щодо цієї Політики або ви хочете видалити свої дані, зв&apos;яжіться з нами:</p>
           <ul className="list-none pl-0 space-y-1">
-            <li className='flex items-center gap-2'> <Mail className='size-4' strokeWidth={0.75}/> Email: <a href="mailto:support@ZapysUA.com" className="text-sky-500 dark:text-sky-500">support@zapysua.com</a></li>
-            <li className='flex items-center gap-2'> <Send className='size-4' strokeWidth={0.75} />Telegram: <a href="https://t.me/ZapysUASupport" className="text-sky-500 dark:text-sky-500">@ZapysUASupport</a></li>
+            <li className='flex items-center gap-2'> <Mail className='size-4' strokeWidth={0.75}/> Email: <a href="mailto:uazapys@gmail.com" className="text-sky-500 dark:text-sky-500">uazapys@gmail.com</a></li>
+            <li className='flex items-center gap-2'> <Send className='size-4' strokeWidth={0.75} />Telegram: <a href="https://t.me/ZapysUaBot" className="text-sky-500 dark:text-sky-500">@ZapysUASupport</a></li>
           </ul>
         </section>
 

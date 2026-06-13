@@ -270,8 +270,9 @@ export function ClientMasterView({ profile }: ClientMasterViewProps) {
           <ClientMasterBookings masterId={profile.id} />
         )}
       </div>
-
+      {isAuthenticated && (
       <ChatButton masterId={profile.id} businessName={profile.business_name} />
+      )}
     </div>
   );
 }
