@@ -72,7 +72,7 @@ export function MiniAppShell() {
 
   if (!isSubscriptionActive(master.subscription)) {
     return (
-      <PaymentRequired onRefresh={loadMaster} refreshing={loading} />
+      <PaymentRequired status={master.subscription?.status} onRefresh={loadMaster} refreshing={loading} />
     );
   }
 

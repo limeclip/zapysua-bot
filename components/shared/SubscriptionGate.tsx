@@ -8,6 +8,19 @@ import { STAR_PLAN_PRICES } from "@/lib/stars-plans";
 import type { MasterWithMeta } from "@/types";
 import { CreditCard } from "lucide-react";
 
+function getStatusMessage(status?: string): string {
+  switch (status) {
+    case "trial":
+      return "Ваш триал завершився. 🕒";
+    case "expired":
+      return "Ваша підписка закінчилась. 💳";
+    case "cancelled":
+      return "Підписку скасовано. ❌";
+    default:
+      return "Підписка неактивна.";
+  }
+}
+
 export function SubscriptionGate({
   master,
   children,
@@ -15,19 +28,21 @@ export function SubscriptionGate({
   master: MasterWithMeta;
   children: React.ReactNode;
 }) {
-  if (isSubscriptionActive(master.subscription)) {
-    return <>{children}</>;
-  }
+  const active = isSubscriptionActive(master.subscription);
+  if (active) return <>{children}</>;
+
+  const status = master.subscription?.status;
+  const message = getStatusMessage(status);
 
   return (
     <Card className="py-8 text-center">
       <CreditCard className="mx-auto mb-3 h-8 w-8 text-zinc-400" />
       <h2 className="mb-2 font-medium text-zinc-900 dark:text-zinc-100">
-        Підписка неактивна
+        {message}
       </h2>
       <p className="mb-2 text-sm text-zinc-500 dark:text-zinc-400">
-        Ваш триал завершився. Щоб продовжити користуватися сервісом, оберіть
-        тариф і оплатіть через Telegram Stars.
+        Щоб продовжити користуватися сервісом, оберіть тариф і оплатіть через
+        Telegram Stars.
       </p>
       <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-300">
         Місяць — {STAR_PLAN_PRICES.monthly.amount} Stars, рік —{" "}

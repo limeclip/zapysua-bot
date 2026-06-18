@@ -9,12 +9,29 @@ import { CreditCard, RefreshCw } from "lucide-react";
 type PaymentRequiredProps = {
   onRefresh?: () => void;
   refreshing?: boolean;
+  status?: string; // додано
 };
+
+function getStatusMessage(status?: string): string {
+  switch (status) {
+    case "trial":
+      return "Ваш триал завершився. 🕒";
+    case "expired":
+      return "Ваша підписка закінчилась. 💳";
+    case "cancelled":
+      return "Підписку скасовано. ❌";
+    default:
+      return "Підписка неактивна.";
+  }
+}
 
 export function PaymentRequired({
   onRefresh,
   refreshing = false,
+  status,
 }: PaymentRequiredProps) {
+  const message = getStatusMessage(status);
+
   return (
     <div className="relative mx-auto flex min-h-screen w-full max-w-lg items-center justify-center px-4 py-8">
       <div className="absolute inset-0 -z-10 -mx-4">
@@ -27,7 +44,7 @@ export function PaymentRequired({
         </div>
 
         <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-          Ваш триал завершився. 🕒
+          {message}
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
           Щоб продовжити користуватися AI-адміністратором, оберіть тариф і
