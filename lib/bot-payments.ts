@@ -1,5 +1,6 @@
 import type { Bot } from "grammy";
 import { activateSubscriptionFromPayment } from "@/lib/subscription-server";
+import { invalidateMasterContextCache } from "@/lib/ai-context";
 import { parseInvoicePayload } from "@/lib/stars-plans";
 import { getMasterById } from "@/lib/api/masters";
 import { formatDateLong, formatDateKey } from "@/lib/dates";
@@ -38,6 +39,8 @@ export function registerPaymentHandlers(bot: Bot<BotContext>): void {
         invoicePayload: payment.invoice_payload,
         amount: payment.total_amount,
       });
+
+      invalidateMasterContextCache(parsed.masterId);
 
       const master = await getMasterById(parsed.masterId);
       const timeZone = master?.timezone ?? "Europe/Kyiv";

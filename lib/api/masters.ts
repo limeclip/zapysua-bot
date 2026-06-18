@@ -110,7 +110,7 @@ export async function getMasterWithMeta(
   const { data: subscriptionRaw } = await supabaseAdmin
     .from("subscriptions")
     .select(
-      "status, plan_type, trial_end_date, subscription_start_date, subscription_end_date, last_payment_amount, last_payment_date",
+      "id, master_id, status, plan_type, trial_start_date, trial_end_date, subscription_start_date, subscription_end_date, last_payment_amount, last_payment_date",
     )
     .eq("master_id", master.id)
     .order("created_at", { ascending: false })

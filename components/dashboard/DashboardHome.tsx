@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { TabBar, type TabId } from "@/components/shared/TabBar";
 import { HomeTab } from "@/components/dashboard/HomeTab";
 import { ServicesTab } from "@/components/dashboard/ServicesTab";
@@ -12,8 +12,6 @@ import type { MasterWithMeta } from "@/types";
 import {  Calendar, LinkIcon, Settings } from "lucide-react";
 import { Button } from "../ui/button";
 import { getClientStartAppLink } from "@/lib/referral";
-import { isSubscriptionActive } from "@/lib/subscription";
-import { SubscriptionExpiredModal } from "@/components/dashboard/SubscriptionExpiredModal";
 
 type DashboardHomeProps = {
   master: MasterWithMeta;
@@ -24,13 +22,6 @@ export function DashboardHome({ master, onMasterUpdate }: DashboardHomeProps) {
   const [tab, setTab] = useState<TabId>("home");
 
   const [copied, setCopied] = useState(false);
-  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
-
-  useEffect(() => {
-    if (!isSubscriptionActive(master.subscription)) {
-      setShowSubscriptionModal(true);
-    }
-  }, [master.subscription]);
 
   const clientLink = getClientStartAppLink(master);
 
@@ -137,11 +128,6 @@ export function DashboardHome({ master, onMasterUpdate }: DashboardHomeProps) {
           Посилання скопійовано
         </div>
       )}
-
-      <SubscriptionExpiredModal
-        open={showSubscriptionModal}
-        onClose={() => setShowSubscriptionModal(false)}
-      />
     </div>
 
   );

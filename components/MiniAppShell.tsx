@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, getApiErrorMessage } from "@/lib/api/client";
 import { useTelegram } from "@/components/providers/TelegramProvider";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { DashboardHome } from "@/components/dashboard/DashboardHome";
+import { PaymentRequired } from "@/components/payment/PaymentRequired";
+import { isSubscriptionActive } from "@/lib/subscription";
 import type { MasterWithMeta } from "@/types";
 import { Loader } from "./Loader";
-
 
 export function MiniAppShell() {
   const { ready, userId } = useTelegram();
@@ -25,7 +26,7 @@ export function MiniAppShell() {
       setError(null);
     } catch (err) {
       console.error("[MiniAppShell]", err);
-      setError(err instanceof Error ? err.message : "Помилка завантаження");
+      setError(getApiErrorMessage(err, "Помилка завантаження"));
     } finally {
       setLoading(false);
     }
@@ -37,9 +38,8 @@ export function MiniAppShell() {
     }
   }, [ready, loadMaster]);
 
-
   if (!ready || loading) {
-    return <Loader />; // ← спільний лоадер
+    return <Loader />;
   }
 
   if (!userId) {
@@ -64,9 +64,15 @@ export function MiniAppShell() {
     return (
       <OnboardingWizard
         onComplete={() => {
-          loadMaster();
+          void loadMaster();
         }}
       />
+    );
+  }
+
+  if (!isSubscriptionActive(master.subscription)) {
+    return (
+      <PaymentRequired onRefresh={loadMaster} refreshing={loading} />
     );
   }
 
